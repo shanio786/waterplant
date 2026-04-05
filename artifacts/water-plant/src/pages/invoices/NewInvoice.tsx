@@ -50,7 +50,7 @@ export default function NewInvoice() {
   const { toast } = useToast();
 
   const customers = useLiveQuery(() => db.customers.orderBy("name").toArray(), []);
-  const products = useLiveQuery(() => db.products.where("isActive").equals(1).toArray(), []);
+  const products = useLiveQuery(() => db.products.filter((p) => p.isActive).toArray(), []);
 
   const defaultProductId = 0;
 
