@@ -21,9 +21,6 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  installerIcon: public/icon.png
-  uninstallerIcon: public/icon.png
-  installerHeader: public/icon.png
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Water Plant Manager

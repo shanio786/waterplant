@@ -4,30 +4,30 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
+const isElectronBuild = process.env.ELECTRON_BUILD === "true";
 const rawPort = process.env.PORT;
+const basePath = process.env.BASE_PATH;
 
-if (!rawPort) {
+if (!isElectronBuild && !rawPort) {
   throw new Error(
     "PORT environment variable is required but was not provided.",
   );
 }
 
-const port = Number(rawPort);
+const port = Number(rawPort || "5173");
 
-if (Number.isNaN(port) || port <= 0) {
+if (!isElectronBuild && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
+if (!isElectronBuild && !basePath) {
   throw new Error(
     "BASE_PATH environment variable is required but was not provided.",
   );
 }
 
 export default defineConfig({
-  base: basePath,
+  base: isElectronBuild ? "./" : (basePath ?? "/"),
   plugins: [
     react(),
     tailwindcss(),
@@ -55,7 +55,7 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, isElectronBuild ? "dist" : "dist/public"),
     emptyOutDir: true,
   },
   server: {
