@@ -17,6 +17,7 @@ import {
   LogOut,
   ShieldCheck,
   Building2,
+  HardDrive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ interface NavItem {
   href?: string;
   icon: React.ComponentType<{ className?: string }>;
   roles?: UserRole[];
-  children?: { label: string; href: string; roles?: UserRole[] }[];
+  children?: { label: string; href: string; roles?: UserRole[]; icon?: React.ComponentType<{ className?: string }> }[];
 }
 
 const navItems: NavItem[] = [
@@ -74,10 +75,11 @@ const navItems: NavItem[] = [
   {
     label: "Settings",
     icon: Settings,
-    roles: ["dev"],
+    roles: ["dev", "admin"],
     children: [
       { label: "Business Info", href: "/settings/business", roles: ["dev"] },
       { label: "Users", href: "/settings/users", roles: ["dev"] },
+      { label: "Backup & Restore", href: "/settings/backup", icon: HardDrive, roles: ["dev", "admin"] },
     ],
   },
 ];

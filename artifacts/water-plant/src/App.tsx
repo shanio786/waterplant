@@ -23,6 +23,7 @@ import Reports from "@/pages/reports/Reports";
 import Products from "@/pages/products/Products";
 import BusinessSettings from "@/pages/settings/BusinessSettings";
 import UsersPage from "@/pages/settings/Users";
+import BackupRestore from "@/pages/settings/BackupRestore";
 import Layout from "@/components/Layout";
 import NotFound from "@/pages/not-found";
 
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="/products" component={Products} />
         <Route path="/settings/business" component={BusinessSettings} />
         <Route path="/settings/users" component={UsersPage} />
+        <Route path="/settings/backup" component={BackupRestore} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
