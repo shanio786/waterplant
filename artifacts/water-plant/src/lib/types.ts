@@ -1,0 +1,149 @@
+export type BottleSize = '500ml' | '1.5L' | '5L' | '19L';
+
+export const BOTTLE_SIZES: BottleSize[] = ['500ml', '1.5L', '5L', '19L'];
+
+export const BOTTLE_LABELS: Record<BottleSize, string> = {
+  '500ml': '500 ml',
+  '1.5L': '1.5 Liter',
+  '5L': '5 Liter',
+  '19L': '19 Liter (Can)',
+};
+
+export type PaymentType = 'cash' | 'credit';
+export type DiscountType = 'flat' | 'percent';
+
+export type ExpenseCategory =
+  | 'Salary'
+  | 'Rent'
+  | 'Electricity'
+  | 'Fuel'
+  | 'Maintenance'
+  | 'Other';
+
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Salary',
+  'Rent',
+  'Electricity',
+  'Fuel',
+  'Maintenance',
+  'Other',
+];
+
+export interface Customer {
+  id?: number;
+  name: string;
+  phone: string;
+  address: string;
+  createdAt: string;
+}
+
+export interface EmptyStockEntry {
+  id?: number;
+  bottleSize: BottleSize;
+  quantity: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface FillingRecord {
+  id?: number;
+  bottleSize: BottleSize;
+  quantity: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface InvoiceItem {
+  bottleSize: BottleSize;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+export interface Invoice {
+  id?: number;
+  invoiceNumber: string;
+  customerId: number;
+  date: string;
+  items: InvoiceItem[];
+  discountType: DiscountType;
+  discountValue: number;
+  discountAmount: number;
+  returnAdjustment: number;
+  returnNote: string;
+  subtotal: number;
+  netAmount: number;
+  paymentType: PaymentType;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Payment {
+  id?: number;
+  customerId: number;
+  amount: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface ProductReturn {
+  id?: number;
+  customerId: number;
+  invoiceId?: number;
+  date: string;
+  items: Array<{ bottleSize: BottleSize; quantity: number; rate: number; credit: number }>;
+  totalCredit: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CanReturn {
+  id?: number;
+  customerId: number;
+  quantity: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Expense {
+  id?: number;
+  category: ExpenseCategory;
+  amount: number;
+  description: string;
+  date: string;
+  createdAt: string;
+}
+
+export interface StockSummary {
+  bottleSize: BottleSize;
+  emptyReceived: number;
+  filled: number;
+  emptyRemaining: number;
+  fullSold: number;
+  fullReturned: number;
+  fullRemaining: number;
+}
+
+export interface CustomerLedgerEntry {
+  date: string;
+  type: 'invoice' | 'payment' | 'return' | 'can_return';
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  refId?: number;
+}
+
+export interface DashboardSummary {
+  todaySales: number;
+  todayCash: number;
+  todayCredit: number;
+  todayExpenses: number;
+  todayPaymentsReceived: number;
+  totalReceivable: number;
+  stockAlerts: StockSummary[];
+}
