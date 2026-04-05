@@ -7,11 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { db } from "@/lib/db";
 import { getStockSummary, getCustomerBalance } from "@/lib/calculations";
 import type { StockSummary, BottleSize } from "@/lib/types";
-import { BOTTLE_LABELS, BOTTLE_SIZES } from "@/lib/types";
-import { Users, Package, Printer, TrendingUp } from "lucide-react";
+import { BOTTLE_LABELS, BOTTLE_SIZES, EXPENSE_CATEGORIES } from "@/lib/types";
+import { Users, Package, Printer, TrendingUp, Receipt, RotateCcw, Wallet, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 
 function formatPKR(n: number) {
@@ -432,6 +433,325 @@ function CustomerBalanceReport() {
   );
 }
 
+function ExpenseReport() {
+  const [fromDate, setFromDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
+  const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
+  const [category, setCategory] = useState("all");
+
+  const expenses = useLiveQuery(
+    () => db.expenses.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
+
+  const filtered = (expenses || []).filter((e) => category === "all" || e.category === category);
+  const total = filtered.reduce((s, e) => s + e.amount, 0);
+  const byCategory: Record<string, number> = {};
+  filtered.forEach((e) => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount; });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap no-print">
+        <div className="space-y-1"><Label className="text-xs">From</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" /></div>
+        <div className="space-y-1"><Label className="text-xs">To</Label><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-36" /></div>
+        <div className="space-y-1">
+          <Label className="text-xs">Category</Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              {EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" size="sm" className="mt-5" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {Object.entries(byCategory).map(([cat, amt]) => (
+          <Card key={cat}><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">{cat}</p><p className="text-lg font-bold text-orange-600">{formatPKR(amt)}</p></CardContent></Card>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead><tr className="bg-muted">
+            <th className="text-left py-2.5 px-3 text-xs font-semibold">Date</th>
+            <th className="text-left py-2.5 px-3 text-xs font-semibold">Category</th>
+            <th className="text-left py-2.5 px-3 text-xs font-semibold">Description</th>
+            <th className="text-right py-2.5 px-3 text-xs font-semibold">Amount</th>
+          </tr></thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">Is period mein koi expense nahi</td></tr>
+            ) : (
+              filtered.map((e) => (
+                <tr key={e.id} className="border-b">
+                  <td className="py-2 px-3 text-muted-foreground">{format(new Date(e.date), "dd MMM yy")}</td>
+                  <td className="py-2 px-3"><Badge variant="secondary" className="text-xs">{e.category}</Badge></td>
+                  <td className="py-2 px-3">{e.description || "—"}</td>
+                  <td className="py-2 px-3 text-right font-semibold text-orange-600">{formatPKR(e.amount)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          {filtered.length > 0 && (
+            <tfoot><tr className="font-bold border-t bg-muted/50">
+              <td colSpan={3} className="py-2.5 px-3">Total ({filtered.length} expenses)</td>
+              <td className="py-2.5 px-3 text-right text-orange-600">{formatPKR(total)}</td>
+            </tr></tfoot>
+          )}
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CustomerLedgerReport() {
+  const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
+  const [fromDate, setFromDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
+  const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const customers = useLiveQuery(() => db.customers.orderBy("name").toArray());
+  const invoices = useLiveQuery(
+    () => selectedCustomer ? db.invoices.where("customerId").equals(selectedCustomer).toArray() : Promise.resolve([] as import("@/lib/types").Invoice[]),
+    [selectedCustomer]
+  );
+  const payments = useLiveQuery(
+    () => selectedCustomer ? db.payments.where("customerId").equals(selectedCustomer).toArray() : Promise.resolve([] as import("@/lib/types").Payment[]),
+    [selectedCustomer]
+  );
+  const returns = useLiveQuery(
+    () => selectedCustomer ? db.productReturns.where("customerId").equals(selectedCustomer).toArray() : Promise.resolve([] as import("@/lib/types").ProductReturn[]),
+    [selectedCustomer]
+  );
+
+  const customer = (customers || []).find((c) => c.id === selectedCustomer);
+
+  const filtInvoices = (invoices || []).filter((i) => i.date >= fromDate && i.date <= toDate);
+  const filtPayments = (payments || []).filter((p) => p.date >= fromDate && p.date <= toDate);
+  const filtReturns = (returns || []).filter((r) => r.date >= fromDate && r.date <= toDate);
+
+  type LedgerRow = { date: string; type: string; description: string; debit: number; credit: number; };
+  const rows: LedgerRow[] = [
+    ...filtInvoices.map((i) => ({ date: i.date, type: i.paymentType === "cash" ? "Cash Sale" : "Credit Sale", description: i.invoiceNumber, debit: i.paymentType === "credit" ? i.netAmount : 0, credit: 0 })),
+    ...filtPayments.map((p) => ({ date: p.date, type: "Payment", description: p.notes || "Payment received", debit: 0, credit: p.amount })),
+    ...filtReturns.map((r) => ({ date: r.date, type: "Return", description: `Return (${r.items.length} items)`, debit: 0, credit: r.totalCredit })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  let running = 0;
+  const totalDebit = rows.reduce((s, r) => s + r.debit, 0);
+  const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
+  const balance = totalDebit - totalCredit;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap no-print">
+        <div className="space-y-1">
+          <Label className="text-xs">Customer</Label>
+          <Select value={selectedCustomer ? String(selectedCustomer) : ""} onValueChange={(v) => setSelectedCustomer(Number(v))}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Select customer..." /></SelectTrigger>
+            <SelectContent>{(customers || []).map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1"><Label className="text-xs">From</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" /></div>
+        <div className="space-y-1"><Label className="text-xs">To</Label><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-36" /></div>
+        {selectedCustomer && <Button variant="outline" size="sm" className="mt-5" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print Ledger</Button>}
+      </div>
+      {!selectedCustomer ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">Customer select karein ledger dekhne ke liye</p>
+      ) : (
+        <>
+          <div className="border rounded-lg p-4 bg-muted/30">
+            <p className="font-bold text-lg">{customer?.name}</p>
+            <p className="text-sm text-muted-foreground">{customer?.phone} {customer?.address && `• ${customer.address}`}</p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Total Debit (Receivable)</p><p className="text-lg font-bold text-destructive">{formatPKR(totalDebit)}</p></CardContent></Card>
+            <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Total Credit (Paid+Returns)</p><p className="text-lg font-bold text-green-600">{formatPKR(totalCredit)}</p></CardContent></Card>
+            <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Net Balance</p><p className={`text-lg font-bold ${balance > 0 ? "text-destructive" : "text-green-600"}`}>{formatPKR(Math.abs(balance))} {balance > 0 ? "(Due)" : "(Clear)"}</p></CardContent></Card>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead><tr className="bg-muted">
+                <th className="text-left py-2.5 px-3 text-xs font-semibold">Date</th>
+                <th className="text-left py-2.5 px-3 text-xs font-semibold">Type</th>
+                <th className="text-left py-2.5 px-3 text-xs font-semibold">Description</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Debit</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Credit</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Balance</th>
+              </tr></thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">Is period mein koi transaction nahi</td></tr>
+                ) : (
+                  rows.map((r, i) => {
+                    running += r.debit - r.credit;
+                    return (
+                      <tr key={i} className="border-b">
+                        <td className="py-2 px-3 text-muted-foreground">{format(new Date(r.date), "dd MMM yy")}</td>
+                        <td className="py-2 px-3"><Badge variant={r.type === "Payment" ? "default" : r.type === "Return" ? "secondary" : "outline"} className="text-xs">{r.type}</Badge></td>
+                        <td className="py-2 px-3">{r.description}</td>
+                        <td className="py-2 px-3 text-right text-destructive font-medium">{r.debit > 0 ? formatPKR(r.debit) : "—"}</td>
+                        <td className="py-2 px-3 text-right text-green-600 font-medium">{r.credit > 0 ? formatPKR(r.credit) : "—"}</td>
+                        <td className={`py-2 px-3 text-right font-semibold ${running > 0 ? "text-destructive" : "text-green-600"}`}>{formatPKR(Math.abs(running))}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ReturnsReport() {
+  const [fromDate, setFromDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
+  const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const productReturns = useLiveQuery(
+    () => db.productReturns.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
+  const canReturns = useLiveQuery(
+    () => db.canReturns.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
+  const customers = useLiveQuery(() => db.customers.toArray());
+  const customerMap = Object.fromEntries((customers || []).map((c) => [c.id!, c.name]));
+
+  const totalProductCredit = (productReturns || []).reduce((s, r) => s + r.totalCredit, 0);
+  const totalCanQty = (canReturns || []).reduce((s, r) => s + r.quantity, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap no-print">
+        <div className="space-y-1"><Label className="text-xs">From</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" /></div>
+        <div className="space-y-1"><Label className="text-xs">To</Label><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-36" /></div>
+        <Button variant="outline" size="sm" className="mt-5" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Product Returns</p><p className="text-lg font-bold">{productReturns?.length || 0}</p></CardContent></Card>
+        <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Can Returns (Qty)</p><p className="text-lg font-bold">{totalCanQty}</p></CardContent></Card>
+        <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Product Credit Given</p><p className="text-lg font-bold text-green-600">{formatPKR(totalProductCredit)}</p></CardContent></Card>
+      </div>
+      <div>
+        <p className="text-sm font-semibold mb-2">Product Returns</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead><tr className="bg-muted">
+              <th className="text-left py-2 px-3 text-xs font-semibold">Date</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold">Customer</th>
+              <th className="text-right py-2 px-3 text-xs font-semibold">Items</th>
+              <th className="text-right py-2 px-3 text-xs font-semibold">Credit</th>
+            </tr></thead>
+            <tbody>
+              {(productReturns || []).length === 0 ? (
+                <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">Koi return nahi</td></tr>
+              ) : (
+                (productReturns || []).map((r) => (
+                  <tr key={r.id} className="border-b">
+                    <td className="py-2 px-3 text-muted-foreground">{format(new Date(r.date), "dd MMM yy")}</td>
+                    <td className="py-2 px-3 font-medium">{customerMap[r.customerId] || "?"}</td>
+                    <td className="py-2 px-3 text-right">{r.items.length}</td>
+                    <td className="py-2 px-3 text-right text-green-600 font-semibold">{formatPKR(r.totalCredit)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <p className="text-sm font-semibold mb-2">19L Can Returns</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead><tr className="bg-muted">
+              <th className="text-left py-2 px-3 text-xs font-semibold">Date</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold">Customer</th>
+              <th className="text-right py-2 px-3 text-xs font-semibold">Qty</th>
+              <th className="text-left py-2 px-3 text-xs font-semibold">Notes</th>
+            </tr></thead>
+            <tbody>
+              {(canReturns || []).length === 0 ? (
+                <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">Koi can return nahi</td></tr>
+              ) : (
+                (canReturns || []).map((r) => (
+                  <tr key={r.id} className="border-b">
+                    <td className="py-2 px-3 text-muted-foreground">{format(new Date(r.date), "dd MMM yy")}</td>
+                    <td className="py-2 px-3 font-medium">{customerMap[r.customerId] || "?"}</td>
+                    <td className="py-2 px-3 text-right font-semibold">{r.quantity} cans</td>
+                    <td className="py-2 px-3 text-muted-foreground">{r.notes || "—"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentsReport() {
+  const [fromDate, setFromDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
+  const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const payments = useLiveQuery(
+    () => db.payments.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
+  const customers = useLiveQuery(() => db.customers.toArray());
+  const customerMap = Object.fromEntries((customers || []).map((c) => [c.id!, c]));
+
+  const total = (payments || []).reduce((s, p) => s + p.amount, 0);
+  const totalPayments = (payments || []).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap no-print">
+        <div className="space-y-1"><Label className="text-xs">From</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" /></div>
+        <div className="space-y-1"><Label className="text-xs">To</Label><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-36" /></div>
+        <Button variant="outline" size="sm" className="mt-5" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Total Received</p><p className="text-lg font-bold text-green-600">{formatPKR(total)}</p></CardContent></Card>
+        <Card><CardContent className="pt-3 pb-3"><p className="text-xs text-muted-foreground">Transactions</p><p className="text-lg font-bold">{totalPayments}</p></CardContent></Card>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead><tr className="bg-muted">
+            <th className="text-left py-2.5 px-3 text-xs font-semibold">Date</th>
+            <th className="text-left py-2.5 px-3 text-xs font-semibold">Customer</th>
+            <th className="text-left py-2.5 px-3 text-xs font-semibold">Notes</th>
+            <th className="text-right py-2.5 px-3 text-xs font-semibold">Amount</th>
+          </tr></thead>
+          <tbody>
+            {(payments || []).length === 0 ? (
+              <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">Is period mein koi payment nahi</td></tr>
+            ) : (
+              (payments || []).map((p) => (
+                <tr key={p.id} className="border-b">
+                  <td className="py-2 px-3 text-muted-foreground">{format(new Date(p.date), "dd MMM yy")}</td>
+                  <td className="py-2 px-3 font-medium">{customerMap[p.customerId]?.name || "?"}</td>
+                  <td className="py-2 px-3 text-muted-foreground">{p.notes || "—"}</td>
+                  <td className="py-2 px-3 text-right font-semibold text-green-600">{formatPKR(p.amount)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          {(payments || []).length > 0 && (
+            <tfoot><tr className="font-bold border-t bg-muted/50">
+              <td colSpan={4} className="py-2.5 px-3">Total</td>
+              <td className="py-2.5 px-3 text-right text-green-600">{formatPKR(total)}</td>
+            </tr></tfoot>
+          )}
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function Reports() {
   return (
     <div className="space-y-6" data-testid="page-reports">
@@ -441,12 +761,16 @@ export default function Reports() {
       </div>
 
       <Tabs defaultValue="daily">
-        <TabsList className="mb-4 flex-wrap">
-          <TabsTrigger value="daily" data-testid="tab-daily">Daily Report</TabsTrigger>
+        <TabsList className="mb-4 flex-wrap h-auto gap-1">
+          <TabsTrigger value="daily" data-testid="tab-daily">Daily</TabsTrigger>
           <TabsTrigger value="sales" data-testid="tab-sales">Product Sales</TabsTrigger>
           <TabsTrigger value="pnl" data-testid="tab-pnl">Profit &amp; Loss</TabsTrigger>
-          <TabsTrigger value="stock" data-testid="tab-stock">Stock Report</TabsTrigger>
+          <TabsTrigger value="stock" data-testid="tab-stock">Stock</TabsTrigger>
           <TabsTrigger value="balance" data-testid="tab-balance">Customer Balances</TabsTrigger>
+          <TabsTrigger value="ledger" data-testid="tab-ledger">Customer Ledger</TabsTrigger>
+          <TabsTrigger value="expenses" data-testid="tab-expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="returns" data-testid="tab-returns">Returns</TabsTrigger>
+          <TabsTrigger value="payments" data-testid="tab-payments">Payments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily">
@@ -505,6 +829,62 @@ export default function Reports() {
             </CardHeader>
             <CardContent>
               <CustomerBalanceReport />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ledger">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Customer Ledger (Printable)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CustomerLedgerReport />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="expenses">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Receipt className="h-4 w-4" />
+                Expense Report (Printable)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ExpenseReport />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="returns">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Returns Report (Printable)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReturnsReport />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Payments Received Report (Printable)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PaymentsReport />
             </CardContent>
           </Card>
         </TabsContent>
