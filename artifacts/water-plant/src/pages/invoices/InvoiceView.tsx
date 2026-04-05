@@ -127,6 +127,9 @@ function A4Invoice({
           {settings.footerNote}
         </div>
       )}
+      <div className="text-center text-[10px] text-gray-300 mt-4">
+        Powered by Devoria Tech &nbsp;|&nbsp; +92 311 7597815
+      </div>
     </div>
   );
 }
@@ -182,6 +185,7 @@ function ThermalReceipt({
       </div>
       <p className="text-xs">Payment: {invoice.paymentType === "cash" ? "Cash" : "Udhaar"}</p>
       <p className="text-xs text-center mt-2">{settings?.footerNote || "*** Thank You ***"}</p>
+      <p className="text-center mt-1" style={{ fontSize: "9px", color: "#999" }}>Powered by Devoria Tech | +92 311 7597815</p>
     </div>
   );
 }

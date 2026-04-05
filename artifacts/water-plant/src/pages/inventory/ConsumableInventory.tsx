@@ -225,7 +225,7 @@ export default function ConsumableInventory() {
                       </div>
                     )}
                     {prod && prod.labelsPerUnit === 0 && prod.capsPerUnit === 0 && (
-                      <p className="text-xs text-muted-foreground">Is size ke liye labels/caps 0 set hain (Products mein update karein)</p>
+                      <p className="text-xs text-muted-foreground">Labels/Caps not set for this size — update in Products</p>
                     )}
                   </div>
                 );
@@ -242,7 +242,7 @@ export default function ConsumableInventory() {
         </CardHeader>
         <CardContent>
           {entriesList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Koi entry nahi — upar se add karein.</p>
+            <p className="text-sm text-muted-foreground">No entries yet — add stock above.</p>
           ) : (
             <div className="divide-y">
               {entriesList.slice(0, 20).map((e) => (

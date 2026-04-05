@@ -30,7 +30,7 @@ export default function Login() {
     const ok = await login(username.trim(), password);
     setLoading(false);
     if (!ok) {
-      setError("غلط username یا password");
+      setError("Invalid username or password");
     } else {
       setLocation("/");
     }
@@ -51,7 +51,7 @@ export default function Login() {
 
         <Card className="shadow-lg">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base text-center">Login کریں</CardTitle>
+            <CardTitle className="text-base text-center">Sign In</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -61,7 +61,7 @@ export default function Login() {
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="dev"
+                  placeholder="Enter username"
                   autoComplete="username"
                   data-testid="input-username"
                   required
@@ -85,14 +85,15 @@ export default function Login() {
               )}
               <Button type="submit" className="w-full" disabled={loading} data-testid="button-login">
                 <LogIn className="h-4 w-4 mr-2" />
-                {loading ? "لاگ ان ہو رہا ہے..." : "Login"}
+                {loading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
-            <p className="text-xs text-center text-muted-foreground mt-4">
-              Default: dev / dev123
-            </p>
           </CardContent>
         </Card>
+
+        <p className="text-center text-xs text-gray-400 mt-6">
+          Powered by <span className="font-semibold text-gray-500">Devoria Tech</span>&nbsp;|&nbsp;+92 311 7597815
+        </p>
       </div>
     </div>
   );

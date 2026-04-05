@@ -113,7 +113,7 @@ export default function BackupRestore() {
           await tbl.bulkPut(rows);
         }
       }
-      toast({ title: "Restore complete!", description: "Sab data restore ho gaya. Page refresh hoga." });
+      toast({ title: "Restore complete!", description: "All data restored successfully. Refreshing..." });
       setRestoreState("done");
       setTimeout(() => window.location.reload(), 2000);
     } catch (err) {
@@ -126,7 +126,7 @@ export default function BackupRestore() {
     <div className="max-w-2xl space-y-6" data-testid="page-backup-restore">
       <div>
         <h1 className="text-2xl font-bold">Backup &amp; Restore</h1>
-        <p className="text-sm text-muted-foreground">Pura data JSON file mein download karein ya purana backup restore karein</p>
+        <p className="text-sm text-muted-foreground">Download all data as a JSON backup file or restore from a previous backup</p>
       </div>
 
       {/* Export */}
@@ -134,10 +134,10 @@ export default function BackupRestore() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Download className="h-4 w-4 text-green-600" />
-            Backup Download کریں
+            Download Backup
           </CardTitle>
           <CardDescription>
-            Sabhi customers, invoices, stock, payments, expenses ka data ek JSON file mein download hoga. Isse safe jagah rakhein.
+            All customers, invoices, stock, payments and expenses will be exported as a JSON file. Keep it in a safe location.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -163,10 +163,10 @@ export default function BackupRestore() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Upload className="h-4 w-4 text-orange-600" />
-            Backup Restore کریں
+            Restore from Backup
           </CardTitle>
           <CardDescription>
-            Pehle se downloaded backup file upload karein. <strong className="text-destructive">موجودہ سارا data مٹ جائے گا</strong> — sirf tabhi use karein jab zaroorat ho.
+            Upload a previously downloaded backup file. <strong className="text-destructive">All existing data will be replaced.</strong> Only use when necessary.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -174,7 +174,7 @@ export default function BackupRestore() {
             <>
               <div className="flex items-start gap-2 text-sm text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-3">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>Restore karne se <strong>pura existing data delete</strong> ho jata hai aur backup file ka data replace ho jata hai. Pehle backup zaroor lein.</span>
+                <span>Restoring will <strong>delete all current data</strong> and replace it with the backup file contents. Take a fresh backup first if needed.</span>
               </div>
               <input
                 ref={fileInputRef}
@@ -191,7 +191,7 @@ export default function BackupRestore() {
                 data-testid="button-select-file"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Backup File Select Karein (.json)
+                Select Backup File (.json)
               </Button>
             </>
           )}
@@ -201,7 +201,7 @@ export default function BackupRestore() {
               <div className="flex items-start gap-2 text-sm text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-3">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-semibold">Confirm karein — Restore hoga:</p>
+                  <p className="font-semibold">Confirm Restore — Data from:</p>
                   <p className="text-xs mt-0.5">Export date: {format(new Date(pendingData.exportedAt), "dd MMM yyyy hh:mm a")}</p>
                 </div>
               </div>
@@ -227,7 +227,7 @@ export default function BackupRestore() {
                   data-testid="button-confirm-restore"
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  Haan, Restore Karo
+                  Yes, Restore Now
                 </Button>
               </div>
             </div>
@@ -236,14 +236,14 @@ export default function BackupRestore() {
           {restoreState === "restoring" && (
             <div className="flex items-center gap-3 p-4 text-sm text-primary">
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
-              Data restore ho raha hai...
+              Restoring data, please wait...
             </div>
           )}
 
           {restoreState === "done" && (
             <div className="flex items-center gap-2 text-green-700 text-sm p-3 bg-green-50 border border-green-200 rounded-lg">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              Restore complete! Page automatically refresh ho raha hai...
+              Restore complete! Page will refresh automatically...
             </div>
           )}
         </CardContent>
@@ -255,9 +255,9 @@ export default function BackupRestore() {
           <div className="flex items-start gap-2 text-sm text-muted-foreground">
             <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0 text-blue-500" />
             <div className="space-y-1">
-              <p><strong>Backup policy:</strong> Rozana ek backup lena achha hai — especially invoice/payment data ke baad.</p>
-              <p><strong>Restore kab karein:</strong> Naya computer, data loss, ya system reset ke waqt.</p>
-              <p><strong>Note:</strong> User accounts (passwords) backup mein include nahi hote.</p>
+              <p><strong>Best practice:</strong> Take a backup daily — especially after invoicing or payment activity.</p>
+              <p><strong>When to restore:</strong> New computer, data loss, or system reset.</p>
+              <p><strong>Note:</strong> User accounts and passwords are not included in the backup.</p>
             </div>
           </div>
         </CardContent>

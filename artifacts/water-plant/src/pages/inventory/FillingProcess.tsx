@@ -75,7 +75,7 @@ export default function FillingProcess() {
   async function onSubmit(data: FormData) {
     const available = getAvailableEmpty(data.bottleSize as BottleSize);
     if (data.quantity > available) {
-      toast({ title: "Empty stock nahi hai", description: `Sirf ${available} empty ${BOTTLE_LABELS[data.bottleSize as BottleSize]} available hain.`, variant: "destructive" });
+      toast({ title: "Insufficient empty stock", description: `Only ${available} empty ${BOTTLE_LABELS[data.bottleSize as BottleSize]} available.`, variant: "destructive" });
       return;
     }
     await db.fillingRecords.add({
@@ -192,7 +192,7 @@ export default function FillingProcess() {
                     </div>
                   )}
                   {labelsNeeded === 0 && capsNeeded === 0 && (
-                    <p className="text-xs text-muted-foreground col-span-2">Is size ke liye labels/caps 0 set hain (Products mein update karein)</p>
+                    <p className="text-xs text-muted-foreground col-span-2">Labels/Caps not configured for this size — update in Products</p>
                   )}
                 </div>
               </div>

@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import type { UserRole } from "@/lib/types";
+import { loadPerms, type StoreManagerPerms } from "@/pages/settings/Permissions";
 
 const roleLabels: Record<UserRole, string> = {
   dev: "Developer",
@@ -36,14 +37,16 @@ interface NavItem {
   href?: string;
   icon: React.ComponentType<{ className?: string }>;
   roles?: UserRole[];
-  children?: { label: string; href: string; roles?: UserRole[]; icon?: React.ComponentType<{ className?: string }> }[];
+  permKey?: keyof StoreManagerPerms;
+  children?: { label: string; href: string; roles?: UserRole[]; icon?: React.ComponentType<{ className?: string }>; permKey?: keyof StoreManagerPerms }[];
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/", icon: LayoutDashboard, permKey: "dashboard" },
   {
     label: "Inventory",
     icon: Package,
+    permKey: "inventory",
     children: [
       { label: "Receive Empty Bottles", href: "/inventory/receive" },
       { label: "Filling Process", href: "/inventory/fill" },
@@ -51,10 +54,11 @@ const navItems: NavItem[] = [
       { label: "Labels & Caps", href: "/inventory/consumables" },
     ],
   },
-  { label: "Customers", href: "/customers", icon: Users },
+  { label: "Customers", href: "/customers", icon: Users, permKey: "customers" },
   {
     label: "Invoices",
     icon: FileText,
+    permKey: "invoices",
     children: [
       { label: "New Invoice", href: "/invoices/new" },
       { label: "Invoice History", href: "/invoices" },
@@ -63,14 +67,15 @@ const navItems: NavItem[] = [
   {
     label: "Returns",
     icon: RotateCcw,
+    permKey: "returns",
     children: [
       { label: "Product Return", href: "/returns/product" },
       { label: "19L Can Return", href: "/returns/can" },
     ],
   },
-  { label: "Payments", href: "/payments", icon: DollarSign },
-  { label: "Expenses", href: "/expenses", icon: DollarSign },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Payments", href: "/payments", icon: DollarSign, permKey: "payments" },
+  { label: "Expenses", href: "/expenses", icon: DollarSign, permKey: "expenses" },
+  { label: "Reports", href: "/reports", icon: BarChart3, permKey: "reports" },
   { label: "Products", href: "/products", icon: ShoppingBag, roles: ["dev", "admin"] },
   {
     label: "Settings",
@@ -79,6 +84,7 @@ const navItems: NavItem[] = [
     children: [
       { label: "Business Info", href: "/settings/business", roles: ["dev"] },
       { label: "Users", href: "/settings/users", roles: ["dev"] },
+      { label: "Permissions", href: "/settings/permissions", roles: ["dev"] },
       { label: "Backup & Restore", href: "/settings/backup", icon: HardDrive, roles: ["dev", "admin"] },
     ],
   },
@@ -94,9 +100,12 @@ function NavItemComponent({ item }: { item: NavItem }) {
 
   if (item.roles && user && !item.roles.includes(user.role)) return null;
 
+  const perms = user?.role === "store_manager" ? loadPerms() : null;
+  if (perms && item.permKey && !perms[item.permKey]) return null;
+
   if (item.children) {
     const visibleChildren = item.children.filter(
-      (c) => !c.roles || (user && c.roles.includes(user.role))
+      (c) => (!c.roles || (user && c.roles.includes(user.role)))
     );
     if (visibleChildren.length === 0) return null;
     const isActive = visibleChildren.some((c) => c.href === location);

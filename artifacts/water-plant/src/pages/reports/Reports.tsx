@@ -107,7 +107,7 @@ function DailyReport() {
                     <td className="py-2">{customerMap[inv.customerId]?.name || "?"}</td>
                     <td className="py-2">
                       <Badge variant={inv.paymentType === "cash" ? "default" : "outline"} className={`text-xs ${inv.paymentType === "credit" ? "border-orange-400 text-orange-600" : ""}`}>
-                        {inv.paymentType === "cash" ? "Cash" : "Udhaar"}
+                        {inv.paymentType === "cash" ? "Cash" : "Credit"}
                       </Badge>
                     </td>
                     <td className="py-2 text-right font-medium">{formatPKR(inv.netAmount)}</td>
@@ -480,7 +480,7 @@ function ExpenseReport() {
           </tr></thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">Is period mein koi expense nahi</td></tr>
+              <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">No expenses found for this period</td></tr>
             ) : (
               filtered.map((e) => (
                 <tr key={e.id} className="border-b">
@@ -506,6 +506,7 @@ function ExpenseReport() {
 
 function CustomerLedgerReport() {
   const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [fromDate, setFromDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
   const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
 
@@ -545,10 +546,23 @@ function CustomerLedgerReport() {
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap no-print">
         <div className="space-y-1">
-          <Label className="text-xs">Customer</Label>
-          <Select value={selectedCustomer ? String(selectedCustomer) : ""} onValueChange={(v) => setSelectedCustomer(Number(v))}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="Select customer..." /></SelectTrigger>
-            <SelectContent>{(customers || []).map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+          <Label className="text-xs">Search Customer</Label>
+          <Input
+            placeholder="Type name to search..."
+            value={customerSearch}
+            onChange={(e) => { setCustomerSearch(e.target.value); setSelectedCustomer(null); }}
+            className="w-48"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Select Customer</Label>
+          <Select value={selectedCustomer ? String(selectedCustomer) : ""} onValueChange={(v) => { setSelectedCustomer(Number(v)); setCustomerSearch(""); }}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Choose customer..." /></SelectTrigger>
+            <SelectContent>
+              {(customers || [])
+                .filter((c) => !customerSearch || c.name.toLowerCase().includes(customerSearch.toLowerCase()))
+                .map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
         <div className="space-y-1"><Label className="text-xs">From</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" /></div>
@@ -556,7 +570,7 @@ function CustomerLedgerReport() {
         {selectedCustomer && <Button variant="outline" size="sm" className="mt-5" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print Ledger</Button>}
       </div>
       {!selectedCustomer ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Customer select karein ledger dekhne ke liye</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Search or select a customer to view their ledger</p>
       ) : (
         <>
           <div className="border rounded-lg p-4 bg-muted/30">
@@ -580,7 +594,7 @@ function CustomerLedgerReport() {
               </tr></thead>
               <tbody>
                 {rows.length === 0 ? (
-                  <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">Is period mein koi transaction nahi</td></tr>
+                  <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">No transactions found for this period</td></tr>
                 ) : (
                   rows.map((r, i) => {
                     running += r.debit - r.credit;
@@ -647,7 +661,7 @@ function ReturnsReport() {
             </tr></thead>
             <tbody>
               {(productReturns || []).length === 0 ? (
-                <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">Koi return nahi</td></tr>
+                <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No product returns found</td></tr>
               ) : (
                 (productReturns || []).map((r) => (
                   <tr key={r.id} className="border-b">
@@ -674,7 +688,7 @@ function ReturnsReport() {
             </tr></thead>
             <tbody>
               {(canReturns || []).length === 0 ? (
-                <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">Koi can return nahi</td></tr>
+                <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No can returns found</td></tr>
               ) : (
                 (canReturns || []).map((r) => (
                   <tr key={r.id} className="border-b">
@@ -728,7 +742,7 @@ function PaymentsReport() {
           </tr></thead>
           <tbody>
             {(payments || []).length === 0 ? (
-              <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">Is period mein koi payment nahi</td></tr>
+              <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">No payments found for this period</td></tr>
             ) : (
               (payments || []).map((p) => (
                 <tr key={p.id} className="border-b">

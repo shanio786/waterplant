@@ -24,6 +24,7 @@ import Products from "@/pages/products/Products";
 import BusinessSettings from "@/pages/settings/BusinessSettings";
 import UsersPage from "@/pages/settings/Users";
 import BackupRestore from "@/pages/settings/BackupRestore";
+import Permissions from "@/pages/settings/Permissions";
 import Layout from "@/components/Layout";
 import NotFound from "@/pages/not-found";
 
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="/settings/business" component={BusinessSettings} />
         <Route path="/settings/users" component={UsersPage} />
         <Route path="/settings/backup" component={BackupRestore} />
+        <Route path="/settings/permissions" component={Permissions} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
