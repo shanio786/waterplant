@@ -1,0 +1,37 @@
+appId: com.waterplant.manager
+productName: Water Plant Manager
+copyright: "Water Plant Manager"
+
+directories:
+  buildResources: public
+  output: dist-electron
+
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: public/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: public/icon.png
+  uninstallerIcon: public/icon.png
+  installerHeader: public/icon.png
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Water Plant Manager
+
+mac:
+  target: dmg
+  icon: public/icon.png
+
+linux:
+  target: AppImage
+  icon: public/icon.png

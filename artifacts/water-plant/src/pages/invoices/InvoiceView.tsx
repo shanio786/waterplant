@@ -169,7 +169,7 @@ export default function InvoiceView() {
     db.invoices.get(Number(id)).then((inv) => {
       if (!inv) return;
       setInvoice(inv);
-      db.customers.get(inv.customerId).then(setCustomer);
+      db.customers.get(inv.customerId).then((c) => setCustomer(c ?? null));
     });
   }, [id]);
 

@@ -30,13 +30,17 @@ export default function FillingProcess() {
     db.fillingRecords.orderBy("date").reverse().limit(20).toArray()
   );
   const emptyEntries = useLiveQuery(() => db.emptyStockEntries.toArray());
+  const allFillingRecords = useLiveQuery(() => db.fillingRecords.toArray());
 
   function getAvailableEmpty(size: BottleSize) {
-    if (!emptyEntries) return 0;
+    if (!emptyEntries || !allFillingRecords) return 0;
     const received = emptyEntries
       .filter((e) => e.bottleSize === size)
       .reduce((s, e) => s + e.quantity, 0);
-    return received;
+    const alreadyFilled = allFillingRecords
+      .filter((r) => r.bottleSize === size)
+      .reduce((s, r) => s + r.quantity, 0);
+    return Math.max(0, received - alreadyFilled);
   }
 
   const form = useForm<FormData>({
