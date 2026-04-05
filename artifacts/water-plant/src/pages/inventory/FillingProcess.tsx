@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
 import { BOTTLE_SIZES, BOTTLE_LABELS } from "@/lib/types";
 import type { BottleSize } from "@/lib/types";
-import { Droplets } from "lucide-react";
+import { Droplets, Tag, Package2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 const schema = z.object({
@@ -31,6 +32,8 @@ export default function FillingProcess() {
   );
   const emptyEntries = useLiveQuery(() => db.emptyStockEntries.toArray());
   const allFillingRecords = useLiveQuery(() => db.fillingRecords.toArray());
+  const products = useLiveQuery(() => db.products.filter((p) => p.isActive).toArray());
+  const consumableStock = useLiveQuery(() => db.consumableStock.toArray());
 
   function getAvailableEmpty(size: BottleSize) {
     if (!emptyEntries || !allFillingRecords) return 0;
@@ -41,6 +44,22 @@ export default function FillingProcess() {
       .filter((r) => r.bottleSize === size)
       .reduce((s, r) => s + r.quantity, 0);
     return Math.max(0, received - alreadyFilled);
+  }
+
+  function getProductForSize(size: BottleSize) {
+    return (products || []).find((p) => p.bottleSize === size);
+  }
+
+  function getConsumableBalance(size: BottleSize, item: "label" | "cap"): number {
+    const prod = getProductForSize(size);
+    const perUnit = item === "label" ? (prod?.labelsPerUnit ?? 0) : (prod?.capsPerUnit ?? 0);
+    const received = (consumableStock || [])
+      .filter((e) => e.item === item && e.bottleSize === size)
+      .reduce((s, e) => s + e.quantity, 0);
+    const used = (allFillingRecords || [])
+      .filter((r) => r.bottleSize === size)
+      .reduce((s, r) => s + r.quantity * perUnit, 0);
+    return Math.max(0, received - used);
   }
 
   const form = useForm<FormData>({
@@ -56,7 +75,7 @@ export default function FillingProcess() {
   async function onSubmit(data: FormData) {
     const available = getAvailableEmpty(data.bottleSize as BottleSize);
     if (data.quantity > available) {
-      toast({ title: "Not enough empty stock", description: `Only ${available} empty ${BOTTLE_LABELS[data.bottleSize as BottleSize]} available.`, variant: "destructive" });
+      toast({ title: "Empty stock nahi hai", description: `Sirf ${available} empty ${BOTTLE_LABELS[data.bottleSize as BottleSize]} available hain.`, variant: "destructive" });
       return;
     }
     await db.fillingRecords.add({
@@ -66,17 +85,31 @@ export default function FillingProcess() {
       notes: data.notes,
       createdAt: new Date().toISOString(),
     });
-    toast({ title: "Filling recorded", description: `${data.quantity} × ${BOTTLE_LABELS[data.bottleSize as BottleSize]} filled.` });
+    const prod = getProductForSize(data.bottleSize as BottleSize);
+    const labelsUsed = data.quantity * (prod?.labelsPerUnit ?? 0);
+    const capsUsed = data.quantity * (prod?.capsPerUnit ?? 0);
+    let desc = `${data.quantity} × ${BOTTLE_LABELS[data.bottleSize as BottleSize]} filled.`;
+    if (labelsUsed > 0) desc += ` ${labelsUsed} labels used.`;
+    if (capsUsed > 0) desc += ` ${capsUsed} caps used.`;
+    toast({ title: "Filling recorded", description: desc });
     form.reset({ bottleSize: "19L", quantity: 1, date: new Date().toISOString().slice(0, 10), notes: "" });
   }
 
   const selectedSize = form.watch("bottleSize") as BottleSize;
+  const selectedQty = Number(form.watch("quantity")) || 0;
+  const prod = getProductForSize(selectedSize);
+  const labelsNeeded = selectedQty * (prod?.labelsPerUnit ?? 0);
+  const capsNeeded = selectedQty * (prod?.capsPerUnit ?? 0);
+  const labelsLeft = getConsumableBalance(selectedSize, "label");
+  const capsLeft = getConsumableBalance(selectedSize, "cap");
+  const labelShort = labelsNeeded > 0 && labelsLeft < labelsNeeded;
+  const capShort = capsNeeded > 0 && capsLeft < capsNeeded;
 
   return (
     <div className="max-w-2xl space-y-6" data-testid="page-filling-process">
       <div>
         <h1 className="text-2xl font-bold">Filling Process</h1>
-        <p className="text-sm text-muted-foreground">Convert empty bottles to full bottles</p>
+        <p className="text-sm text-muted-foreground">Empty bottles کو fill کریں — labels/caps بھی track ہوں گے</p>
       </div>
 
       <Card>
@@ -107,7 +140,7 @@ export default function FillingProcess() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Empty available: {getAvailableEmpty(selectedSize)}
+                  Empty available: <strong>{getAvailableEmpty(selectedSize)}</strong>
                 </p>
               </div>
 
@@ -124,6 +157,46 @@ export default function FillingProcess() {
                 )}
               </div>
             </div>
+
+            {/* Labels & Caps preview */}
+            {selectedQty > 0 && (
+              <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {selectedQty} botol ke liye درکار:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {labelsNeeded > 0 && (
+                    <div className={`flex items-center gap-2 rounded-md p-2 text-sm ${labelShort ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-100"}`}>
+                      <Tag className={`h-4 w-4 shrink-0 ${labelShort ? "text-red-500" : "text-blue-500"}`} />
+                      <div>
+                        <p className="font-semibold">{labelsNeeded} Labels</p>
+                        <p className={`text-xs ${labelShort ? "text-red-600" : "text-muted-foreground"}`}>
+                          {labelShort ? (
+                            <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Sirf {labelsLeft} available</span>
+                          ) : `${labelsLeft} available`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {capsNeeded > 0 && (
+                    <div className={`flex items-center gap-2 rounded-md p-2 text-sm ${capShort ? "bg-red-50 border border-red-200" : "bg-purple-50 border border-purple-100"}`}>
+                      <Package2 className={`h-4 w-4 shrink-0 ${capShort ? "text-red-500" : "text-purple-500"}`} />
+                      <div>
+                        <p className="font-semibold">{capsNeeded} Caps</p>
+                        <p className={`text-xs ${capShort ? "text-red-600" : "text-muted-foreground"}`}>
+                          {capShort ? (
+                            <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Sirf {capsLeft} available</span>
+                          ) : `${capsLeft} available`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {labelsNeeded === 0 && capsNeeded === 0 && (
+                    <p className="text-xs text-muted-foreground col-span-2">Is size ke liye labels/caps 0 set hain (Products mein update karein)</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>Date</Label>
@@ -151,18 +224,39 @@ export default function FillingProcess() {
             <p className="text-sm text-muted-foreground">No filling records yet.</p>
           ) : (
             <div className="divide-y">
-              {records.map((r) => (
-                <div key={r.id} className="py-2.5 flex justify-between text-sm" data-testid={`record-${r.id}`}>
-                  <div>
-                    <span className="font-medium">{BOTTLE_LABELS[r.bottleSize]}</span>
-                    {r.notes && <span className="text-muted-foreground ml-2">— {r.notes}</span>}
+              {records.map((r) => {
+                const p = getProductForSize(r.bottleSize);
+                const lblUsed = r.quantity * (p?.labelsPerUnit ?? 0);
+                const capUsed = r.quantity * (p?.capsPerUnit ?? 0);
+                return (
+                  <div key={r.id} className="py-2.5 text-sm" data-testid={`record-${r.id}`}>
+                    <div className="flex justify-between">
+                      <div>
+                        <span className="font-medium">{BOTTLE_LABELS[r.bottleSize]}</span>
+                        {r.notes && <span className="text-muted-foreground ml-2">— {r.notes}</span>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-green-600">+{r.quantity} filled</span>
+                        <span className="text-muted-foreground text-xs">{format(new Date(r.date), "dd MMM yyyy")}</span>
+                      </div>
+                    </div>
+                    {(lblUsed > 0 || capUsed > 0) && (
+                      <div className="flex gap-3 mt-1 ml-0.5">
+                        {lblUsed > 0 && (
+                          <Badge variant="secondary" className="text-xs font-normal gap-1">
+                            <Tag className="h-3 w-3 text-blue-500" />{lblUsed} labels
+                          </Badge>
+                        )}
+                        {capUsed > 0 && (
+                          <Badge variant="secondary" className="text-xs font-normal gap-1">
+                            <Package2 className="h-3 w-3 text-purple-500" />{capUsed} caps
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-green-600">+{r.quantity} filled</span>
-                    <span className="text-muted-foreground text-xs">{format(new Date(r.date), "dd MMM yyyy")}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

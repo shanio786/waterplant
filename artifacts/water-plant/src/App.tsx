@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import ReceiveEmpty from "@/pages/inventory/ReceiveEmpty";
 import FillingProcess from "@/pages/inventory/FillingProcess";
 import StockView from "@/pages/inventory/StockView";
+import ConsumableInventory from "@/pages/inventory/ConsumableInventory";
 import Customers from "@/pages/customers/Customers";
 import CustomerDetail from "@/pages/customers/CustomerDetail";
 import NewInvoice from "@/pages/invoices/NewInvoice";
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="/inventory/receive" component={ReceiveEmpty} />
         <Route path="/inventory/fill" component={FillingProcess} />
         <Route path="/inventory/stock" component={StockView} />
+        <Route path="/inventory/consumables" component={ConsumableInventory} />
         <Route path="/customers" component={Customers} />
         <Route path="/customers/:id" component={CustomerDetail} />
         <Route path="/invoices" component={InvoiceHistory} />

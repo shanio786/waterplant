@@ -158,12 +158,49 @@
   .print-only {
     display: block !important;
   }
+
+  /* Hide everything except invoice */
   body {
     background: white !important;
     color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
+
+  /* Make main layout printable — full width, no scroll */
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Layout flex wrapper */
+  .flex.h-screen {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Main content area */
+  .flex-1.flex.flex-col.overflow-hidden {
+    display: block !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+    height: auto !important;
+  }
+
+  /* Card wrapper */
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
   @page {
-    margin: 10mm;
+    margin: 8mm;
+    size: A4 portrait;
   }
 }
 

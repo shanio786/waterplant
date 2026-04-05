@@ -47,6 +47,7 @@ const navItems: NavItem[] = [
       { label: "Receive Empty Bottles", href: "/inventory/receive" },
       { label: "Filling Process", href: "/inventory/fill" },
       { label: "Stock View", href: "/inventory/stock" },
+      { label: "Labels & Caps", href: "/inventory/consumables" },
     ],
   },
   { label: "Customers", href: "/customers", icon: Users },
@@ -164,7 +165,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 w-64 bg-sidebar flex flex-col transition-transform duration-200 lg:static lg:translate-x-0",
+          "no-print fixed inset-y-0 left-0 z-30 w-64 bg-sidebar flex flex-col transition-transform duration-200 lg:static lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

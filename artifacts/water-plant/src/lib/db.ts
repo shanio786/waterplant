@@ -11,6 +11,7 @@ import type {
   Product,
   User,
   BusinessSettings,
+  ConsumableStock,
 } from './types';
 
 async function hashPwd(password: string): Promise<string> {
@@ -33,6 +34,7 @@ export class WaterPlantDB extends Dexie {
   products!: Table<Product, number>;
   users!: Table<User, number>;
   businessSettings!: Table<BusinessSettings, number>;
+  consumableStock!: Table<ConsumableStock, number>;
 
   constructor() {
     super('WaterPlantDB');
@@ -147,6 +149,21 @@ export class WaterPlantDB extends Dexie {
           });
         }
       });
+
+    this.version(3).stores({
+      customers: '++id, name, phone, createdAt',
+      emptyStockEntries: '++id, bottleSize, date, createdAt',
+      fillingRecords: '++id, bottleSize, date, createdAt',
+      invoices: '++id, invoiceNumber, customerId, date, paymentType, createdAt',
+      payments: '++id, customerId, date, createdAt',
+      productReturns: '++id, customerId, invoiceId, date, createdAt',
+      canReturns: '++id, customerId, date, createdAt',
+      expenses: '++id, category, date, createdAt',
+      products: '++id, name, category, isActive',
+      users: '++id, username, role',
+      businessSettings: '++id',
+      consumableStock: '++id, item, bottleSize, date, createdAt',
+    });
   }
 }
 

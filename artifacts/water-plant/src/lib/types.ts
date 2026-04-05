@@ -200,3 +200,15 @@ export interface DashboardSummary {
   totalReceivable: number;
   stockAlerts: StockSummary[];
 }
+
+export type ConsumableItem = 'label' | 'cap';
+
+export interface ConsumableStock {
+  id?: number;
+  item: ConsumableItem;
+  bottleSize: BottleSize;
+  quantity: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
