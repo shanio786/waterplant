@@ -1,6 +1,6 @@
-appId: com.waterplant.manager
+appId: com.devoriatech.waterplantmanager
 productName: Water Plant Manager
-copyright: "Water Plant Manager"
+copyright: "© 2026 Devoria Tech | +92 311 7597815"
 
 directories:
   buildResources: public
@@ -17,13 +17,20 @@ win:
       arch:
         - x64
   icon: public/icon.png
+  requestedExecutionLevel: asInvoker
 
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
+  allowElevation: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Water Plant Manager
+  installerHeaderIcon: public/icon.png
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  installerLanguages:
+    - en_US
 
 mac:
   target: dmg
