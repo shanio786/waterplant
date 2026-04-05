@@ -13,15 +13,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { db, generateInvoiceNumber } from "@/lib/db";
-import { BOTTLE_SIZES, BOTTLE_LABELS } from "@/lib/types";
-import type { BottleSize, DiscountType } from "@/lib/types";
+import type { DiscountType } from "@/lib/types";
 import { calculateInvoiceAmounts } from "@/lib/calculations";
 import { Plus, Trash2, FileText } from "lucide-react";
 
 const itemSchema = z.object({
-  bottleSize: z.enum(["500ml", "1.5L", "5L", "19L"]),
-  quantity: z.coerce.number().int().positive(),
-  rate: z.coerce.number().positive(),
+  productId: z.coerce.number().positive("Select a product"),
+  quantity: z.coerce.number().int().positive("Min 1"),
+  rate: z.coerce.number().min(0),
+  costPrice: z.coerce.number().min(0),
 });
 
 const schema = z.object({
@@ -48,14 +48,18 @@ export default function NewInvoice() {
   const params = new URLSearchParams(search);
   const preselectedCustomer = params.get("customer");
   const { toast } = useToast();
+
   const customers = useLiveQuery(() => db.customers.orderBy("name").toArray(), []);
+  const products = useLiveQuery(() => db.products.where("isActive").equals(1).toArray(), []);
+
+  const defaultProductId = 0;
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       customerId: preselectedCustomer ? Number(preselectedCustomer) : 0,
       date: new Date().toISOString().slice(0, 10),
-      items: [{ bottleSize: "19L", quantity: 1, rate: 0 }],
+      items: [{ productId: defaultProductId, quantity: 1, rate: 0, costPrice: 0 }],
       discountType: "flat",
       discountValue: 0,
       returnAdjustment: 0,
@@ -79,7 +83,17 @@ export default function NewInvoice() {
     watchedReturn || 0
   );
 
+  function handleProductChange(index: number, productId: number) {
+    form.setValue(`items.${index}.productId`, productId);
+    const prod = products?.find((p) => p.id === productId);
+    if (prod) {
+      form.setValue(`items.${index}.rate`, prod.sellingPrice);
+      form.setValue(`items.${index}.costPrice`, prod.costPrice);
+    }
+  }
+
   async function onSubmit(data: FormData) {
+    const productMap = Object.fromEntries((products || []).map((p) => [p.id!, p]));
     const invNum = await generateInvoiceNumber();
     const { subtotal, discountAmount, netAmount } = calculateInvoiceAmounts(
       data.items.map((i) => ({ quantity: i.quantity, rate: i.rate })),
@@ -92,12 +106,18 @@ export default function NewInvoice() {
       invoiceNumber: invNum,
       customerId: data.customerId,
       date: data.date,
-      items: data.items.map((item) => ({
-        bottleSize: item.bottleSize as BottleSize,
-        quantity: item.quantity,
-        rate: item.rate,
-        amount: item.quantity * item.rate,
-      })),
+      items: data.items.map((item) => {
+        const prod = productMap[item.productId];
+        return {
+          productId: item.productId,
+          productName: prod?.name || "Unknown",
+          bottleSize: prod?.bottleSize,
+          quantity: item.quantity,
+          rate: item.rate,
+          costPrice: item.costPrice,
+          amount: item.quantity * item.rate,
+        };
+      }),
       discountType: data.discountType as DiscountType,
       discountValue: data.discountValue,
       discountAmount,
@@ -110,9 +130,11 @@ export default function NewInvoice() {
       createdAt: new Date().toISOString(),
     });
 
-    toast({ title: "Invoice created", description: `Invoice #${invNum} — ${formatPKR(netAmount)}` });
+    toast({ title: "Invoice created", description: `#${invNum} — ${formatPKR(netAmount)}` });
     setLocation(`/invoices/${invoiceId}`);
   }
+
+  const productOptions = (products || []).filter((p) => p.isActive);
 
   return (
     <div className="max-w-3xl space-y-6" data-testid="page-new-invoice">
@@ -122,7 +144,6 @@ export default function NewInvoice() {
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Customer + date */}
         <Card>
           <CardContent className="pt-4 grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -153,7 +174,6 @@ export default function NewInvoice() {
           </CardContent>
         </Card>
 
-        {/* Items */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
@@ -162,7 +182,7 @@ export default function NewInvoice() {
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => append({ bottleSize: "19L", quantity: 1, rate: 0 })}
+                onClick={() => append({ productId: 0, quantity: 1, rate: 0, costPrice: 0 })}
                 data-testid="button-add-item"
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
@@ -174,46 +194,52 @@ export default function NewInvoice() {
             {fields.map((field, index) => {
               const qty = watchedItems[index]?.quantity || 0;
               const rate = watchedItems[index]?.rate || 0;
+              const cost = watchedItems[index]?.costPrice || 0;
               return (
                 <div key={field.id} className="grid grid-cols-12 gap-2 items-end" data-testid={`item-row-${index}`}>
                   <div className="col-span-4">
-                    {index === 0 && <Label className="text-xs mb-1 block">Bottle Type</Label>}
+                    {index === 0 && <Label className="text-xs mb-1 block">Product</Label>}
                     <Select
-                      value={form.watch(`items.${index}.bottleSize`)}
-                      onValueChange={(v) => form.setValue(`items.${index}.bottleSize`, v as BottleSize)}
+                      value={String(form.watch(`items.${index}.productId`) || "")}
+                      onValueChange={(v) => handleProductChange(index, Number(v))}
                     >
-                      <SelectTrigger className="h-9 text-sm" data-testid={`select-bottle-${index}`}>
-                        <SelectValue />
+                      <SelectTrigger className="h-9 text-sm" data-testid={`select-product-${index}`}>
+                        <SelectValue placeholder="Select..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {BOTTLE_SIZES.map((s) => (
-                          <SelectItem key={s} value={s}>{BOTTLE_LABELS[s]}</SelectItem>
+                        {productOptions.map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.name} ({p.unit})
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     {index === 0 && <Label className="text-xs mb-1 block">Qty</Label>}
                     <Input
-                      type="number"
-                      min={1}
-                      className="h-9 text-sm"
+                      type="number" min={1} className="h-9 text-sm"
                       data-testid={`input-qty-${index}`}
                       {...form.register(`items.${index}.quantity`)}
                     />
                   </div>
-                  <div className="col-span-3">
-                    {index === 0 && <Label className="text-xs mb-1 block">Rate (Rs.)</Label>}
+                  <div className="col-span-2">
+                    {index === 0 && <Label className="text-xs mb-1 block">Rate</Label>}
                     <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className="h-9 text-sm"
+                      type="number" min={0} step="0.01" className="h-9 text-sm"
                       data-testid={`input-rate-${index}`}
                       {...form.register(`items.${index}.rate`)}
                     />
                   </div>
-                  <div className="col-span-1 text-xs text-right text-muted-foreground">
+                  <div className="col-span-2">
+                    {index === 0 && <Label className="text-xs mb-1 block">Cost</Label>}
+                    <Input
+                      type="number" min={0} step="0.01" className="h-9 text-sm"
+                      data-testid={`input-cost-${index}`}
+                      {...form.register(`items.${index}.costPrice`)}
+                    />
+                  </div>
+                  <div className="col-span-1 text-xs text-right text-muted-foreground pt-1">
                     {index === 0 && <div className="text-xs mb-1 opacity-0">-</div>}
                     {formatPKR(qty * rate)}
                   </div>
@@ -234,7 +260,6 @@ export default function NewInvoice() {
           </CardContent>
         </Card>
 
-        {/* Discount + return adjustment */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Adjustments</CardTitle>
@@ -258,50 +283,26 @@ export default function NewInvoice() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Discount Value</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className="h-9 text-sm"
-                  data-testid="input-discount-value"
-                  {...form.register("discountValue")}
-                />
+                <Input type="number" min={0} step="0.01" className="h-9 text-sm" data-testid="input-discount-value" {...form.register("discountValue")} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Discount Amount</Label>
-                <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-sm font-medium">
-                  {formatPKR(discountAmount)}
-                </div>
+                <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-sm font-medium">{formatPKR(discountAmount)}</div>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Return Adjustment (Rs.)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className="h-9 text-sm"
-                  placeholder="0"
-                  data-testid="input-return-adjustment"
-                  {...form.register("returnAdjustment")}
-                />
+                <Input type="number" min={0} step="0.01" className="h-9 text-sm" placeholder="0" data-testid="input-return-adjustment" {...form.register("returnAdjustment")} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Return Note (e.g. 50 bottles returned)</Label>
-                <Input
-                  className="h-9 text-sm"
-                  placeholder="e.g. 50 khali wapas di"
-                  data-testid="input-return-note"
-                  {...form.register("returnNote")}
-                />
+                <Label className="text-xs">Return Note</Label>
+                <Input className="h-9 text-sm" placeholder="e.g. 5 bottles wapas" data-testid="input-return-note" {...form.register("returnNote")} />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Totals */}
         <Card>
           <CardContent className="pt-4 space-y-2">
             <div className="flex justify-between text-sm">
@@ -310,13 +311,13 @@ export default function NewInvoice() {
             </div>
             {discountAmount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Discount ({watchedDiscountType === "percent" ? `${watchedDiscount}%` : "flat"})</span>
+                <span className="text-muted-foreground">Discount</span>
                 <span className="text-green-600">- {formatPKR(discountAmount)}</span>
               </div>
             )}
             {(watchedReturn || 0) > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Return Adjustment</span>
+                <span className="text-muted-foreground">Return</span>
                 <span className="text-green-600">- {formatPKR(watchedReturn || 0)}</span>
               </div>
             )}
@@ -325,10 +326,13 @@ export default function NewInvoice() {
               <span>Net Total</span>
               <span className="text-primary text-lg">{formatPKR(netAmount)}</span>
             </div>
+            <div className="text-xs text-muted-foreground text-right">
+              Est. Cost: {formatPKR(watchedItems.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0))} |
+              Gross Profit: {formatPKR(netAmount - watchedItems.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0))}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Payment type + notes */}
         <Card>
           <CardContent className="pt-4 grid grid-cols-2 gap-4">
             <div className="space-y-1.5">

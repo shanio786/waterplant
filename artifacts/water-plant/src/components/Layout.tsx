@@ -11,17 +11,31 @@ import {
   ChevronDown,
   ChevronRight,
   Menu,
-  X,
   Droplets,
+  ShoppingBag,
+  Settings,
+  LogOut,
+  ShieldCheck,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/AuthContext";
+import type { UserRole } from "@/lib/types";
+
+const roleLabels: Record<UserRole, string> = {
+  dev: "Developer",
+  admin: "Admin",
+  store_manager: "Store Manager",
+};
 
 interface NavItem {
   label: string;
   href?: string;
   icon: React.ComponentType<{ className?: string }>;
-  children?: { label: string; href: string }[];
+  roles?: UserRole[];
+  children?: { label: string; href: string; roles?: UserRole[] }[];
 }
 
 const navItems: NavItem[] = [
@@ -55,52 +69,51 @@ const navItems: NavItem[] = [
   { label: "Payments", href: "/payments", icon: DollarSign },
   { label: "Expenses", href: "/expenses", icon: DollarSign },
   { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Products", href: "/products", icon: ShoppingBag, roles: ["dev", "admin"] },
+  {
+    label: "Settings",
+    icon: Settings,
+    roles: ["dev"],
+    children: [
+      { label: "Business Info", href: "/settings/business", roles: ["dev"] },
+      { label: "Users", href: "/settings/users", roles: ["dev"] },
+    ],
+  },
 ];
 
-function NavItemComponent({
-  item,
-  collapsed,
-}: {
-  item: NavItem;
-  collapsed: boolean;
-}) {
+function NavItemComponent({ item }: { item: NavItem }) {
+  const { user } = useAuth();
   const [location] = useLocation();
   const [open, setOpen] = useState(() => {
-    if (item.children) {
-      return item.children.some((c) => c.href === location);
-    }
+    if (item.children) return item.children.some((c) => c.href === location);
     return false;
   });
 
+  if (item.roles && user && !item.roles.includes(user.role)) return null;
+
   if (item.children) {
-    const isActive = item.children.some((c) => c.href === location);
+    const visibleChildren = item.children.filter(
+      (c) => !c.roles || (user && c.roles.includes(user.role))
+    );
+    if (visibleChildren.length === 0) return null;
+    const isActive = visibleChildren.some((c) => c.href === location);
     return (
       <div>
         <button
           onClick={() => setOpen((o) => !o)}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            isActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/80"
+            isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80"
           )}
           data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, "-")}`}
         >
           <item.icon className="h-4 w-4 shrink-0" />
-          {!collapsed && (
-            <>
-              <span className="flex-1 text-left">{item.label}</span>
-              {open ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-            </>
-          )}
+          <span className="flex-1 text-left">{item.label}</span>
+          {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         </button>
-        {open && !collapsed && (
+        {open && (
           <div className="ml-7 mt-1 space-y-1">
-            {item.children.map((child) => (
+            {visibleChildren.map((child) => (
               <Link key={child.href} href={child.href}>
                 <a
                   className={cn(
@@ -134,69 +147,71 @@ function NavItemComponent({
       data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, "-")}`}
     >
       <item.icon className="h-4 w-4 shrink-0" />
-      {!collapsed && <span>{item.label}</span>}
+      <span>{item.label}</span>
     </Link>
   );
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile overlay */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
+        <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-30 w-64 bg-sidebar flex flex-col transition-transform duration-200 lg:static lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sidebar-primary">
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sidebar-primary shrink-0">
             <Droplets className="h-5 w-5 text-white" />
           </div>
-          <div>
-            <p className="text-sm font-bold text-sidebar-foreground leading-tight">
-              Water Plant
-            </p>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-sidebar-foreground leading-tight truncate">Water Plant</p>
             <p className="text-xs text-sidebar-foreground/60">Management System</p>
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {navItems.map((item) => (
-            <NavItemComponent key={item.label} item={item} collapsed={false} />
+            <NavItemComponent key={item.label} item={item} />
           ))}
         </nav>
 
-        {/* Footer */}
-        <div className="px-4 py-3 border-t border-sidebar-border">
-          <p className="text-xs text-sidebar-foreground/40 text-center">
-            v1.0 — Offline Mode
-          </p>
+        <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
+          {user && (
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-sidebar-accent/30">
+              <div className="w-7 h-7 rounded-full bg-sidebar-primary/20 flex items-center justify-center shrink-0">
+                <ShieldCheck className="h-3.5 w-3.5 text-sidebar-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-sidebar-foreground truncate">{user.name}</p>
+                <p className="text-xs text-sidebar-foreground/50">{roleLabels[user.role]}</p>
+              </div>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            onClick={logout}
+            data-testid="button-logout"
+          >
+            <LogOut className="h-3.5 w-3.5 mr-2" />
+            Logout
+          </Button>
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar (mobile) */}
         <header className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card no-print">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileOpen(true)}
-            data-testid="button-menu"
-          >
+          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} data-testid="button-menu">
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">
@@ -205,7 +220,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Page */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
       </div>
     </div>

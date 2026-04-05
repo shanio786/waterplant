@@ -1,21 +1,20 @@
 import { db } from './db';
-import type {
-  BottleSize,
-  BOTTLE_SIZES,
-  StockSummary,
-  CustomerLedgerEntry,
-  DashboardSummary,
-} from './types';
+import type { BottleSize, StockSummary, CustomerLedgerEntry, DashboardSummary } from './types';
 
 const ALL_SIZES: BottleSize[] = ['500ml', '1.5L', '5L', '19L'];
 
 export async function getStockSummary(): Promise<StockSummary[]> {
-  const [emptyEntries, fillingRecords, invoices, productReturns] = await Promise.all([
+  const [emptyEntries, fillingRecords, invoices, productReturns, products] = await Promise.all([
     db.emptyStockEntries.toArray(),
     db.fillingRecords.toArray(),
     db.invoices.toArray(),
     db.productReturns.toArray(),
+    db.products.toArray(),
   ]);
+
+  const productMap = Object.fromEntries(
+    products.filter((p) => p.bottleSize).map((p) => [p.bottleSize!, p])
+  );
 
   return ALL_SIZES.map((bottleSize) => {
     const emptyReceived = emptyEntries
@@ -28,7 +27,10 @@ export async function getStockSummary(): Promise<StockSummary[]> {
 
     const emptyRemaining = emptyReceived - filled;
 
-    const fullSold = invoices.flatMap((inv) => inv.items).filter((item) => item.bottleSize === bottleSize).reduce((sum, item) => sum + item.quantity, 0);
+    const fullSold = invoices
+      .flatMap((inv) => inv.items)
+      .filter((item) => item.bottleSize === bottleSize)
+      .reduce((sum, item) => sum + item.quantity, 0);
 
     const fullReturned = productReturns
       .flatMap((r) => r.items)
@@ -36,6 +38,7 @@ export async function getStockSummary(): Promise<StockSummary[]> {
       .reduce((sum, item) => sum + item.quantity, 0);
 
     const fullRemaining = filled - fullSold + fullReturned;
+    const prod = productMap[bottleSize];
 
     return {
       bottleSize,
@@ -45,6 +48,8 @@ export async function getStockSummary(): Promise<StockSummary[]> {
       fullSold,
       fullReturned,
       fullRemaining: Math.max(0, fullRemaining),
+      labelsPerUnit: prod?.labelsPerUnit ?? 1,
+      capsPerUnit: prod?.capsPerUnit ?? 1,
     };
   });
 }
@@ -106,7 +111,7 @@ export async function getCustomerLedger(customerId: number): Promise<CustomerLed
       entries.push({
         date: inv.date,
         type: 'invoice',
-        description: `Invoice #${inv.invoiceNumber} (Cash - Settled)`,
+        description: `Invoice #${inv.invoiceNumber} (Cash)`,
         debit: 0,
         credit: 0,
         balance: 0,
@@ -131,7 +136,7 @@ export async function getCustomerLedger(customerId: number): Promise<CustomerLed
     entries.push({
       date: r.date,
       type: 'return',
-      description: r.notes ? `Product Return - ${r.notes}` : 'Product Return',
+      description: r.notes ? `Return - ${r.notes}` : 'Product Return',
       debit: 0,
       credit: r.totalCredit,
       balance: 0,
@@ -156,7 +161,7 @@ export async function getCustomerLedger(customerId: number): Promise<CustomerLed
   let runningBalance = 0;
   entries.forEach((entry) => {
     runningBalance += entry.debit - entry.credit;
-    entry.balance = runningBalance;
+    entry.balance = Math.max(0, runningBalance);
   });
 
   return entries;
@@ -210,11 +215,8 @@ export function calculateInvoiceAmounts(
 ): { subtotal: number; discountAmount: number; netAmount: number } {
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
   let discountAmount = 0;
-  if (discountType === 'flat') {
-    discountAmount = discountValue;
-  } else if (discountType === 'percent') {
-    discountAmount = (subtotal * discountValue) / 100;
-  }
+  if (discountType === 'flat') discountAmount = discountValue;
+  else if (discountType === 'percent') discountAmount = (subtotal * discountValue) / 100;
   const netAmount = Math.max(0, subtotal - discountAmount - returnAdjustment);
   return { subtotal, discountAmount, netAmount };
 }

@@ -1,7 +1,5 @@
 export type BottleSize = '500ml' | '1.5L' | '5L' | '19L';
-
 export const BOTTLE_SIZES: BottleSize[] = ['500ml', '1.5L', '5L', '19L'];
-
 export const BOTTLE_LABELS: Record<BottleSize, string> = {
   '500ml': '500 ml',
   '1.5L': '1.5 Liter',
@@ -11,6 +9,8 @@ export const BOTTLE_LABELS: Record<BottleSize, string> = {
 
 export type PaymentType = 'cash' | 'credit';
 export type DiscountType = 'flat' | 'percent';
+export type UserRole = 'dev' | 'admin' | 'store_manager';
+export type ProductCategory = 'water_bottle' | 'beverage' | 'other';
 
 export type ExpenseCategory =
   | 'Salary'
@@ -21,13 +21,54 @@ export type ExpenseCategory =
   | 'Other';
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Salary',
-  'Rent',
-  'Electricity',
-  'Fuel',
-  'Maintenance',
-  'Other',
+  'Salary', 'Rent', 'Electricity', 'Fuel', 'Maintenance', 'Other',
 ];
+
+export const PRODUCT_CATEGORIES: { value: ProductCategory; label: string }[] = [
+  { value: 'water_bottle', label: 'Water Bottle' },
+  { value: 'beverage', label: 'Beverage / Juice' },
+  { value: 'other', label: 'Other' },
+];
+
+export const USER_ROLES: { value: UserRole; label: string }[] = [
+  { value: 'dev', label: 'Developer (Super Admin)' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'store_manager', label: 'Store Manager' },
+];
+
+export interface Product {
+  id?: number;
+  name: string;
+  unit: string;
+  sellingPrice: number;
+  costPrice: number;
+  labelsPerUnit: number;
+  capsPerUnit: number;
+  category: ProductCategory;
+  bottleSize?: BottleSize;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface User {
+  id?: number;
+  username: string;
+  passwordHash: string;
+  role: UserRole;
+  name: string;
+  createdAt: string;
+}
+
+export interface BusinessSettings {
+  id?: number;
+  companyName: string;
+  phone: string;
+  address: string;
+  city: string;
+  footerNote: string;
+  updatedAt: string;
+}
 
 export interface Customer {
   id?: number;
@@ -56,9 +97,12 @@ export interface FillingRecord {
 }
 
 export interface InvoiceItem {
-  bottleSize: BottleSize;
+  productId?: number;
+  productName: string;
+  bottleSize?: BottleSize;
   quantity: number;
   rate: number;
+  costPrice: number;
   amount: number;
 }
 
@@ -94,7 +138,14 @@ export interface ProductReturn {
   customerId: number;
   invoiceId?: number;
   date: string;
-  items: Array<{ bottleSize: BottleSize; quantity: number; rate: number; credit: number }>;
+  items: Array<{
+    productId?: number;
+    productName: string;
+    bottleSize?: BottleSize;
+    quantity: number;
+    rate: number;
+    credit: number;
+  }>;
   totalCredit: number;
   notes?: string;
   createdAt: string;
@@ -126,6 +177,8 @@ export interface StockSummary {
   fullSold: number;
   fullReturned: number;
   fullRemaining: number;
+  labelsPerUnit: number;
+  capsPerUnit: number;
 }
 
 export interface CustomerLedgerEntry {

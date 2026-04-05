@@ -12,13 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
-import { BOTTLE_SIZES, BOTTLE_LABELS } from "@/lib/types";
-import type { BottleSize, Invoice } from "@/lib/types";
+import type { Invoice } from "@/lib/types";
 import { RotateCcw, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 const itemSchema = z.object({
-  bottleSize: z.enum(["500ml", "1.5L", "5L", "19L"]),
+  productId: z.coerce.number().positive("Select a product"),
   quantity: z.coerce.number().int().positive(),
   rate: z.coerce.number().min(0),
 });
@@ -40,6 +39,7 @@ function formatPKR(n: number) {
 export default function ProductReturn() {
   const { toast } = useToast();
   const customers = useLiveQuery(() => db.customers.orderBy("name").toArray());
+  const products = useLiveQuery(() => db.products.filter((p) => p.isActive).toArray());
   const recent = useLiveQuery(() => db.productReturns.orderBy("date").reverse().limit(10).toArray());
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
 
@@ -49,7 +49,7 @@ export default function ProductReturn() {
       customerId: 0,
       invoiceId: undefined,
       date: new Date().toISOString().slice(0, 10),
-      items: [{ bottleSize: "19L", quantity: 1, rate: 0 }],
+      items: [{ productId: 0, quantity: 1, rate: 0 }],
       notes: "",
     },
   });
@@ -68,25 +68,37 @@ export default function ProductReturn() {
     }
   }, [watchedCustomer]);
 
+  function handleProductChange(index: number, productId: number) {
+    form.setValue(`items.${index}.productId`, productId);
+    const prod = (products || []).find((p) => p.id === productId);
+    if (prod) form.setValue(`items.${index}.rate`, prod.sellingPrice);
+  }
+
   async function onSubmit(data: FormData) {
-    const items = data.items.map((i) => ({
-      bottleSize: i.bottleSize as BottleSize,
-      quantity: i.quantity,
-      rate: i.rate,
-      credit: i.quantity * i.rate,
-    }));
-    const totalCredit = items.reduce((s, i) => s + i.credit, 0);
+    const productMap = Object.fromEntries((products || []).map((p) => [p.id!, p]));
+    const items = data.items.map((i) => {
+      const prod = productMap[i.productId];
+      return {
+        productId: i.productId,
+        productName: prod?.name || "Unknown",
+        bottleSize: prod?.bottleSize,
+        quantity: i.quantity,
+        rate: i.rate,
+        credit: i.quantity * i.rate,
+      };
+    });
+    const total = items.reduce((s, i) => s + i.credit, 0);
     await db.productReturns.add({
       customerId: data.customerId,
       invoiceId: data.invoiceId || undefined,
       date: data.date,
       items,
-      totalCredit,
+      totalCredit: total,
       notes: data.notes,
       createdAt: new Date().toISOString(),
     });
-    toast({ title: "Return recorded", description: `Credit: ${formatPKR(totalCredit)}` });
-    form.reset({ customerId: 0, invoiceId: undefined, date: new Date().toISOString().slice(0, 10), items: [{ bottleSize: "19L", quantity: 1, rate: 0 }], notes: "" });
+    toast({ title: "Return recorded", description: `Credit: ${formatPKR(total)}` });
+    form.reset({ customerId: 0, invoiceId: undefined, date: new Date().toISOString().slice(0, 10), items: [{ productId: 0, quantity: 1, rate: 0 }], notes: "" });
     setCustomerInvoices([]);
   }
 
@@ -96,7 +108,7 @@ export default function ProductReturn() {
     <div className="max-w-2xl space-y-6" data-testid="page-product-return">
       <div>
         <h1 className="text-2xl font-bold">Product Return</h1>
-        <p className="text-sm text-muted-foreground">Customer returns bottles — adjust stock and ledger</p>
+        <p className="text-sm text-muted-foreground">Customer returns products — balance adjusted automatically</p>
       </div>
 
       <Card>
@@ -134,16 +146,16 @@ export default function ProductReturn() {
 
             {customerInvoices.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Link to Invoice (optional)</Label>
+                <Label>Link to Invoice (optional — balance adjust ہوگا)</Label>
                 <Select
                   value={form.watch("invoiceId") ? String(form.watch("invoiceId")) : "none"}
                   onValueChange={(v) => form.setValue("invoiceId", v && v !== "none" ? Number(v) : undefined)}
                 >
                   <SelectTrigger data-testid="select-invoice">
-                    <SelectValue placeholder="Select invoice (optional)..." />
+                    <SelectValue placeholder="Select invoice..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="none">None (direct credit)</SelectItem>
                     {customerInvoices.map((inv) => (
                       <SelectItem key={inv.id} value={String(inv.id)}>
                         {inv.invoiceNumber} — {format(new Date(inv.date), "dd MMM yy")} — {formatPKR(inv.netAmount)}
@@ -157,7 +169,7 @@ export default function ProductReturn() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Items Returned</Label>
-                <Button type="button" size="sm" variant="outline" onClick={() => append({ bottleSize: "19L", quantity: 1, rate: 0 })} data-testid="button-add-item">
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ productId: 0, quantity: 1, rate: 0 })} data-testid="button-add-item">
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Add Item
                 </Button>
@@ -166,14 +178,16 @@ export default function ProductReturn() {
                 <div key={field.id} className="grid grid-cols-7 gap-2 items-center" data-testid={`return-item-${index}`}>
                   <div className="col-span-3">
                     <Select
-                      value={form.watch(`items.${index}.bottleSize`)}
-                      onValueChange={(v) => form.setValue(`items.${index}.bottleSize`, v as BottleSize)}
+                      value={String(form.watch(`items.${index}.productId`) || "")}
+                      onValueChange={(v) => handleProductChange(index, Number(v))}
                     >
                       <SelectTrigger className="h-9 text-sm">
-                        <SelectValue />
+                        <SelectValue placeholder="Product..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {BOTTLE_SIZES.map((s) => <SelectItem key={s} value={s}>{BOTTLE_LABELS[s]}</SelectItem>)}
+                        {(products || []).map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -224,7 +238,7 @@ export default function ProductReturn() {
                   <div>
                     <span className="font-medium">{customerMap[r.customerId]?.name || "?"}</span>
                     <span className="text-muted-foreground ml-2 text-xs">{r.items.length} item(s)</span>
-                    {r.invoiceId && <span className="text-muted-foreground ml-2 text-xs">(Linked)</span>}
+                    {r.invoiceId && <span className="ml-2 text-xs text-blue-600">(Invoice linked)</span>}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-green-600 font-medium">+{formatPKR(r.totalCredit)}</span>
