@@ -1,0 +1,126 @@
+Water Plant Software – Complete Requirement (Tumhari Language mein)
+🟤 1. Khali Bottles System
+
+Sab se pehle:
+
+Hum khali bottles purchase / receive karte hain
+Har type ka record hona chahiye:
+Bottle Types:
+500ml
+1.5 Liter
+5 Liter
+19 Liter
+System mein:
+Kitni khali bottles available hain (type wise)
+Kitni aaj aayi hain
+Total khali stock
+💧 2. Filling / Conversion System
+
+Process:
+
+Khali bottles ➝ Fill ho kar full bottles ban jati hain
+System logic:
+Khali stock kam hoga
+Full stock barhega
+Record hona chahiye:
+Aaj kitni bottles fill hui
+Kis type ki kitni fill hui
+🔵 3. Full Bottles Stock
+
+System bataye:
+
+Kitni full bottles ready hain
+Kitni sale ho chuki hain
+Kitni remaining hain
+🚚 4. Sales / Invoice System
+
+Jab customer ko bottles dete hain:
+
+System kare:
+Invoice generate kare
+Multiple products add ho sakte hain
+Rate + quantity
+Print:
+A4 invoice
+Thermal receipt
+👥 5. Customer System
+
+Har customer ka record:
+
+Naam
+Phone
+Address
+Special:
+19L bottle tracking (returnable)
+Customer ke paas kitni 19L bottles hain
+💰 6. Accounts & Ledger System
+
+Har customer ka full account:
+
+Ledger mein:
+Total bill
+Payment ayi
+Remaining balance
+System bataye:
+Kitna lena hai (Receivable)
+Kitna aa gaya
+Kitna baki hai
+🔁 7. Return System (Important)
+2 Types Return:
+1. Product Return
+Customer ne kuch bottles wapas kar di
+Stock wapas add ho
+Ledger adjust ho
+2. 19L Bottle Return (Can System)
+Customer ne khali can wapas di
+Ya exchange hua (full diya, khali liya)
+System track kare:
+Customer ke paas kitni bottles hain
+Kitni wapas aayi
+📊 8. Daily Report System
+
+Roz ka summary:
+
+Aaj total sale
+Aaj total cash receive
+Aaj ka credit (udhaar)
+Important:
+Aaj kin customers ka balance pending hai
+📈 9. Reports
+Customer wise balance
+Ledger history
+Product wise sale
+Stock report (khali + full)
+🧾 10. Invoice & History
+Purane bills save hon
+Dubara open ho sakte hain
+Re-print option (A4 + thermal)
+🔄 11. Complete Workflow (Simple)
+Khali bottles aayi
+Fill hui → full ban gayi
+Sale hui → invoice bana
+Payment ayi / udhaar bana
+Ledger update
+Return ayi (agar hui) → adjust
+🧠 Core System Logic (Important)
+Stock:
+Khali = Previous + Received - Filled
+Full = Previous + Filled - Sold + Return
+Ledger:
+Balance = Total Sale - Payment - Return
+🔥 Special Points (Tumhari Requirement se)
+✔ Different bottle sizes
+✔ Disposable + Returnable (19L)
+✔ Customer ledger full detail
+✔ Daily pending balance list
+✔ Invoice print + reprint
+✔ Return adjust system
+✔ Stock auto manage
+✅ Final Summary
+
+Yeh software 4 cheezon pe chal raha hai:
+
+Inventory (Khali + Full)
+Filling Process
+Sales + Invoice
+Customer Ledger + Balance
