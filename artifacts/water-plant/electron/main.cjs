@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog } = require("electron");
+const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const os = require("os");
@@ -7,8 +7,12 @@ const crypto = require("crypto");
 
 const isDev = process.env.NODE_ENV === "development";
 
-// ─── Machine ID Lock ─────────────────────────────────────────────────────────
-function getMachineFingerprint() {
+// ─── Secret Key (change this to your own secret before distributing) ──────────
+const SECRET_KEY = "DEVORIA-TECH-WPM-2026-SECRET-XK9";
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Machine ID Generation ───────────────────────────────────────────────────
+function getRawMachineId() {
   const interfaces = os.networkInterfaces();
   const macs = [];
   for (const iface of Object.values(interfaces)) {
@@ -26,31 +30,77 @@ function getMachineFingerprint() {
     os.platform(),
     os.arch(),
   ].join("|");
-  return crypto.createHash("sha256").update(raw).digest("hex");
+  return crypto.createHash("sha256").update(raw).digest("hex").toUpperCase();
 }
 
+// Display format: XXXX-XXXX-XXXX-XXXX (first 16 chars, grouped)
+function formatId(hash) {
+  return hash.slice(0, 16).match(/.{4}/g).join("-");
+}
+
+// Generate expected activation code from machine ID
+function generateActivationCode(machineId) {
+  return crypto
+    .createHmac("sha256", SECRET_KEY)
+    .update(machineId)
+    .digest("hex")
+    .toUpperCase()
+    .slice(0, 16)
+    .match(/.{4}/g)
+    .join("-");
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── License File ────────────────────────────────────────────────────────────
 function getLicensePath() {
-  return path.join(app.getPath("userData"), "license.dat");
+  return path.join(app.getPath("userData"), "activation.dat");
 }
 
-function checkMachineLock() {
-  if (isDev) return true; // Skip lock in development
+function readLicense() {
+  const p = getLicensePath();
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch {
+    return null;
+  }
+}
 
-  const licensePath = getLicensePath();
-  const currentId = getMachineFingerprint();
+function saveLicense(machineId, code) {
+  fs.writeFileSync(
+    getLicensePath(),
+    JSON.stringify({ machineId, code, activatedAt: new Date().toISOString() }),
+    "utf8"
+  );
+}
 
-  if (!fs.existsSync(licensePath)) {
-    // First run — lock this machine
-    fs.writeFileSync(licensePath, currentId, "utf8");
-    return true;
+function checkActivation() {
+  if (isDev) return { activated: true }; // Skip in dev
+
+  const rawId = getRawMachineId();
+  const displayId = formatId(rawId);
+  const license = readLicense();
+
+  if (!license) {
+    return { activated: false, rawId, displayId };
   }
 
-  const savedId = fs.readFileSync(licensePath, "utf8").trim();
-  return savedId === currentId;
+  // Verify the saved code is correct for this machine
+  const expected = generateActivationCode(rawId);
+  const savedNormalized = (license.code || "").replace(/-/g, "").toUpperCase().slice(0, 16);
+  const expectedNormalized = expected.replace(/-/g, "");
+
+  if (savedNormalized === expectedNormalized) {
+    return { activated: true, rawId, displayId };
+  }
+
+  // Machine changed or tampered — invalid
+  return { activated: false, rawId, displayId };
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
 let mainWindow;
+let activationStatus = { activated: false };
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -65,7 +115,6 @@ function createWindow() {
       preload: path.join(__dirname, "preload.cjs"),
     },
     icon: path.join(__dirname, "../public/icon.png"),
-    // Hide menu bar (cleaner look)
     autoHideMenuBar: true,
   });
 
@@ -87,19 +136,30 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  // Machine lock check
-  if (!checkMachineLock()) {
-    dialog.showErrorBox(
-      "Unauthorized — License Error",
-      "This software is licensed for use on a specific computer only.\n\n" +
-      "It cannot be used on a different machine.\n\n" +
-      "Contact Devoria Tech for assistance:\n+92 311 7597815"
-    );
-    app.quit();
-    return;
+// ─── IPC Handlers ─────────────────────────────────────────────────────────
+ipcMain.handle("get-machine-status", () => {
+  return activationStatus;
+});
+
+ipcMain.handle("submit-activation", (_event, inputCode) => {
+  if (!activationStatus.rawId) return { success: false, message: "Machine ID not available" };
+
+  const expected = generateActivationCode(activationStatus.rawId);
+  const inputNorm = (inputCode || "").replace(/[-\s]/g, "").toUpperCase().slice(0, 16);
+  const expectedNorm = expected.replace(/-/g, "");
+
+  if (inputNorm === expectedNorm) {
+    saveLicense(activationStatus.rawId, inputCode);
+    activationStatus = { ...activationStatus, activated: true };
+    return { success: true };
   }
 
+  return { success: false, message: "Invalid activation code. Please contact Devoria Tech." };
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.whenReady().then(() => {
+  activationStatus = checkActivation();
   createWindow();
 
   app.on("activate", () => {

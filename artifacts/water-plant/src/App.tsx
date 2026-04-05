@@ -3,8 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useState, useEffect } from "react";
 
 import Login from "@/pages/Login";
+import Activation from "@/pages/Activation";
 import Dashboard from "@/pages/Dashboard";
 import ReceiveEmpty from "@/pages/inventory/ReceiveEmpty";
 import FillingProcess from "@/pages/inventory/FillingProcess";
@@ -66,16 +68,45 @@ function AppRoutes() {
   );
 }
 
+function ActivationGate({ children }: { children: React.ReactNode }) {
+  const [status, setStatus] = useState<{ activated: boolean; displayId?: string } | null>(null);
+
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api?.getMachineStatus) {
+      // Running in web/browser — skip activation
+      setStatus({ activated: true });
+      return;
+    }
+    api.getMachineStatus().then((s: any) => setStatus(s));
+  }, []);
+
+  if (!status) return null; // Loading
+
+  if (!status.activated && status.displayId) {
+    return (
+      <Activation
+        displayId={status.displayId}
+        onActivated={() => setStatus({ activated: true })}
+      />
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppRoutes />
-          </WouterRouter>
-          <Toaster />
-        </AuthProvider>
+        <ActivationGate>
+          <AuthProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <AppRoutes />
+            </WouterRouter>
+            <Toaster />
+          </AuthProvider>
+        </ActivationGate>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     chrome: process.versions.chrome,
     electron: process.versions.electron,
   },
+  getMachineStatus: () => ipcRenderer.invoke("get-machine-status"),
+  submitActivation: (code) => ipcRenderer.invoke("submit-activation", code),
 });
