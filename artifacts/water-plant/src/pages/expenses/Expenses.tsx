@@ -41,7 +41,9 @@ const categoryColors: Record<ExpenseCategory, string> = {
 
 export default function Expenses() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [filter, setFilter] = useState("");
+  const [filterMode, setFilterMode] = useState<"daily" | "monthly">("daily");
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10));
+  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
   const { toast } = useToast();
 
   const expenses = useLiveQuery(() =>
@@ -70,9 +72,11 @@ export default function Expenses() {
     toast({ title: "Expense deleted" });
   }
 
-  const filtered = (expenses || []).filter((e) =>
-    !filter || e.date === filter
-  );
+  const filtered = (expenses || []).filter((e) => {
+    if (filterMode === "daily") return e.date === filterDate;
+    if (filterMode === "monthly") return e.date.startsWith(filterMonth);
+    return true;
+  });
 
   const total = filtered.reduce((s, e) => s + e.amount, 0);
 
@@ -133,15 +137,30 @@ export default function Expenses() {
         </Dialog>
       </div>
 
-      {/* Filter by date */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <Input type="date" value={filter} onChange={(e) => setFilter(e.target.value)} data-testid="input-filter-date" />
+      {/* Filter controls */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-1 rounded-md border p-1 bg-muted">
+          <button
+            className={`px-3 py-1 text-xs rounded-sm font-medium transition-colors ${filterMode === "daily" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
+            onClick={() => setFilterMode("daily")}
+            data-testid="button-filter-daily"
+          >
+            Daily
+          </button>
+          <button
+            className={`px-3 py-1 text-xs rounded-sm font-medium transition-colors ${filterMode === "monthly" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
+            onClick={() => setFilterMode("monthly")}
+            data-testid="button-filter-monthly"
+          >
+            Monthly
+          </button>
         </div>
-        {filter && (
-          <Button variant="ghost" onClick={() => setFilter("")} size="sm">Clear</Button>
+        {filterMode === "daily" ? (
+          <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="w-44" data-testid="input-filter-date" />
+        ) : (
+          <Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-44" data-testid="input-filter-month" />
         )}
-        <div className="text-sm font-semibold text-right">
+        <div className="ml-auto text-sm font-semibold">
           Total: <span className="text-destructive">{formatPKR(total)}</span>
         </div>
       </div>

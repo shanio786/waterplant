@@ -23,6 +23,10 @@ function DailyReport() {
   const expenses = useLiveQuery(() => db.expenses.where("date").equals(date).toArray(), [date]);
   const payments = useLiveQuery(() => db.payments.where("date").equals(date).toArray(), [date]);
   const customers = useLiveQuery(() => db.customers.toArray(), []);
+  const allInvoices = useLiveQuery(() => db.invoices.toArray(), []);
+  const allPayments = useLiveQuery(() => db.payments.toArray(), []);
+  const allReturns = useLiveQuery(() => db.productReturns.toArray(), []);
+  const [pendingBalances, setPendingBalances] = useState<Record<number, number>>({});
 
   const totalSales = (invoices || []).reduce((s, i) => s + i.netAmount, 0);
   const cashSales = (invoices || []).filter((i) => i.paymentType === "cash").reduce((s, i) => s + i.netAmount, 0);
@@ -31,6 +35,21 @@ function DailyReport() {
   const totalPayments = (payments || []).reduce((s, p) => s + p.amount, 0);
 
   const customerMap = Object.fromEntries((customers || []).map((c) => [c.id!, c]));
+
+  useEffect(() => {
+    if (!customers || !allInvoices || !allPayments || !allReturns) return;
+    const balMap: Record<number, number> = {};
+    customers.forEach((c) => {
+      const creditInvs = (allInvoices || []).filter((inv) => inv.customerId === c.id! && inv.paymentType === "credit");
+      const totalCredit = creditInvs.reduce((s, i) => s + i.netAmount, 0);
+      const paid = (allPayments || []).filter((p) => p.customerId === c.id!).reduce((s, p) => s + p.amount, 0);
+      const returned = (allReturns || []).filter((r) => r.customerId === c.id!).reduce((s, r) => s + r.totalCredit, 0);
+      balMap[c.id!] = Math.max(0, totalCredit - paid - returned);
+    });
+    setPendingBalances(balMap);
+  }, [customers, allInvoices, allPayments, allReturns]);
+
+  const pendingCustomers = (customers || []).filter((c) => (pendingBalances[c.id!] || 0) > 0);
 
   return (
     <div className="space-y-4">
@@ -45,7 +64,7 @@ function DailyReport() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {[
           { label: "Total Sales", value: totalSales, color: "text-primary" },
           { label: "Cash Sales", value: cashSales, color: "text-green-600" },
@@ -97,6 +116,26 @@ function DailyReport() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pending customers */}
+      {pendingCustomers.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Customers with Pending Balance ({pendingCustomers.length})</CardTitle></CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {pendingCustomers.map((c) => (
+                <div key={c.id} className="py-2 flex justify-between text-sm">
+                  <div>
+                    <span className="font-medium">{c.name}</span>
+                    <span className="text-muted-foreground ml-2 text-xs">{c.phone}</span>
+                  </div>
+                  <span className="text-destructive font-medium">{formatPKR(pendingBalances[c.id!] || 0)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Expenses */}
       {expenses && expenses.length > 0 && (

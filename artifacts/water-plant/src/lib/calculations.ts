@@ -56,11 +56,13 @@ export async function getCustomerBalance(customerId: number): Promise<number> {
     db.productReturns.where('customerId').equals(customerId).toArray(),
   ]);
 
-  const totalSales = invoices.reduce((sum, inv) => sum + inv.netAmount, 0);
+  const creditSales = invoices
+    .filter((inv) => inv.paymentType === 'credit')
+    .reduce((sum, inv) => sum + inv.netAmount, 0);
   const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
   const totalReturns = productReturns.reduce((sum, r) => sum + r.totalCredit, 0);
 
-  return totalSales - totalPayments - totalReturns;
+  return Math.max(0, creditSales - totalPayments - totalReturns);
 }
 
 export async function getCustomer19LBalance(customerId: number): Promise<number> {
@@ -90,15 +92,27 @@ export async function getCustomerLedger(customerId: number): Promise<CustomerLed
   const entries: CustomerLedgerEntry[] = [];
 
   invoices.forEach((inv) => {
-    entries.push({
-      date: inv.date,
-      type: 'invoice',
-      description: `Invoice #${inv.invoiceNumber} (${inv.paymentType === 'cash' ? 'Cash' : 'Credit'})`,
-      debit: inv.netAmount,
-      credit: 0,
-      balance: 0,
-      refId: inv.id,
-    });
+    if (inv.paymentType === 'credit') {
+      entries.push({
+        date: inv.date,
+        type: 'invoice',
+        description: `Invoice #${inv.invoiceNumber} (Credit)`,
+        debit: inv.netAmount,
+        credit: 0,
+        balance: 0,
+        refId: inv.id,
+      });
+    } else {
+      entries.push({
+        date: inv.date,
+        type: 'invoice',
+        description: `Invoice #${inv.invoiceNumber} (Cash - Settled)`,
+        debit: 0,
+        credit: 0,
+        balance: 0,
+        refId: inv.id,
+      });
+    }
   });
 
   payments.forEach((p) => {
@@ -168,10 +182,12 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const todayExpensesTotal = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
   const todayPaymentsReceived = todayPayments.reduce((sum, p) => sum + p.amount, 0);
 
-  const totalSales = allInvoices.reduce((sum, inv) => sum + inv.netAmount, 0);
+  const totalCreditSales = allInvoices
+    .filter((inv) => inv.paymentType === 'credit')
+    .reduce((sum, inv) => sum + inv.netAmount, 0);
   const totalPaymentsReceived = allPayments.reduce((sum, p) => sum + p.amount, 0);
   const totalReturns = allReturns.reduce((sum, r) => sum + r.totalCredit, 0);
-  const totalReceivable = totalSales - totalPaymentsReceived - totalReturns;
+  const totalReceivable = Math.max(0, totalCreditSales - totalPaymentsReceived - totalReturns);
 
   const stockAlerts = stock.filter((s) => s.fullRemaining < 10 || s.emptyRemaining < 10);
 
