@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
 import { BOTTLE_SIZES, BOTTLE_LABELS } from "@/lib/types";
-import type { BottleSize } from "@/lib/types";
+import type { BottleSize, Invoice } from "@/lib/types";
 import { RotateCcw, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -25,6 +25,7 @@ const itemSchema = z.object({
 
 const schema = z.object({
   customerId: z.coerce.number().positive("Select a customer"),
+  invoiceId: z.coerce.number().optional(),
   date: z.string().min(1),
   items: z.array(itemSchema).min(1),
   notes: z.string().optional(),
@@ -40,11 +41,13 @@ export default function ProductReturn() {
   const { toast } = useToast();
   const customers = useLiveQuery(() => db.customers.orderBy("name").toArray());
   const recent = useLiveQuery(() => db.productReturns.orderBy("date").reverse().limit(10).toArray());
+  const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       customerId: 0,
+      invoiceId: undefined,
       date: new Date().toISOString().slice(0, 10),
       items: [{ bottleSize: "19L", quantity: 1, rate: 0 }],
       notes: "",
@@ -53,7 +56,17 @@ export default function ProductReturn() {
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const watchedItems = form.watch("items");
+  const watchedCustomer = form.watch("customerId");
   const totalCredit = watchedItems.reduce((s, i) => s + ((i.quantity || 0) * (i.rate || 0)), 0);
+
+  useEffect(() => {
+    if (watchedCustomer) {
+      db.invoices.where("customerId").equals(watchedCustomer).reverse().toArray().then(setCustomerInvoices);
+      form.setValue("invoiceId", undefined);
+    } else {
+      setCustomerInvoices([]);
+    }
+  }, [watchedCustomer]);
 
   async function onSubmit(data: FormData) {
     const items = data.items.map((i) => ({
@@ -65,6 +78,7 @@ export default function ProductReturn() {
     const totalCredit = items.reduce((s, i) => s + i.credit, 0);
     await db.productReturns.add({
       customerId: data.customerId,
+      invoiceId: data.invoiceId || undefined,
       date: data.date,
       items,
       totalCredit,
@@ -72,7 +86,8 @@ export default function ProductReturn() {
       createdAt: new Date().toISOString(),
     });
     toast({ title: "Return recorded", description: `Credit: ${formatPKR(totalCredit)}` });
-    form.reset({ customerId: 0, date: new Date().toISOString().slice(0, 10), items: [{ bottleSize: "19L", quantity: 1, rate: 0 }], notes: "" });
+    form.reset({ customerId: 0, invoiceId: undefined, date: new Date().toISOString().slice(0, 10), items: [{ bottleSize: "19L", quantity: 1, rate: 0 }], notes: "" });
+    setCustomerInvoices([]);
   }
 
   const customerMap = Object.fromEntries((customers || []).map((c) => [c.id!, c]));
@@ -116,6 +131,28 @@ export default function ProductReturn() {
                 <Input type="date" data-testid="input-date" {...form.register("date")} />
               </div>
             </div>
+
+            {customerInvoices.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Link to Invoice (optional)</Label>
+                <Select
+                  value={String(form.watch("invoiceId") || "")}
+                  onValueChange={(v) => form.setValue("invoiceId", v ? Number(v) : undefined)}
+                >
+                  <SelectTrigger data-testid="select-invoice">
+                    <SelectValue placeholder="Select invoice (optional)..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {customerInvoices.map((inv) => (
+                      <SelectItem key={inv.id} value={String(inv.id)}>
+                        {inv.invoiceNumber} — {format(new Date(inv.date), "dd MMM yy")} — {formatPKR(inv.netAmount)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -175,7 +212,6 @@ export default function ProductReturn() {
         </CardContent>
       </Card>
 
-      {/* Recent */}
       <Card>
         <CardHeader><CardTitle className="text-base">Recent Returns</CardTitle></CardHeader>
         <CardContent>
@@ -188,6 +224,7 @@ export default function ProductReturn() {
                   <div>
                     <span className="font-medium">{customerMap[r.customerId]?.name || "?"}</span>
                     <span className="text-muted-foreground ml-2 text-xs">{r.items.length} item(s)</span>
+                    {r.invoiceId && <span className="text-muted-foreground ml-2 text-xs">(Linked)</span>}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-green-600 font-medium">+{formatPKR(r.totalCredit)}</span>
