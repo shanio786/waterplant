@@ -4,14 +4,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
-import { Users, Plus, Search, ArrowRight, Phone, MapPin } from "lucide-react";
+import { Users, Plus, Search, ArrowRight, Phone, MapPin, Pencil } from "lucide-react";
 import type { Customer } from "@/lib/types";
 
 const schema = z.object({
@@ -69,6 +69,29 @@ function CustomerForm({ onSuccess, defaultValues, customerId }: {
   );
 }
 
+function EditCustomerDialog({ customer }: { customer: Customer }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.preventDefault()} data-testid={`button-edit-${customer.id}`}>
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Customer</DialogTitle>
+        </DialogHeader>
+        <CustomerForm
+          defaultValues={{ name: customer.name, phone: customer.phone, address: customer.address }}
+          customerId={customer.id}
+          onSuccess={() => setOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Customers() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -107,7 +130,6 @@ export default function Customers() {
         </Dialog>
       </div>
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -119,7 +141,6 @@ export default function Customers() {
         />
       </div>
 
-      {/* List */}
       <div className="space-y-2">
         {!filtered || filtered.length === 0 ? (
           <Card>
@@ -130,31 +151,32 @@ export default function Customers() {
           </Card>
         ) : (
           filtered.map((c) => (
-            <Link key={c.id} href={`/customers/${c.id}`} className="block" data-testid={`customer-${c.id}`}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-                      {c.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{c.name}</p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {c.phone}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {c.address}
-                        </span>
+            <div key={c.id} className="relative">
+              <Link href={`/customers/${c.id}`} className="block" data-testid={`customer-${c.id}`}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{c.name}</p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>
+                          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{c.address}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            </Link>
+                    <div className="flex items-center gap-1 pr-1">
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+              <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                <EditCustomerDialog customer={c} />
+              </div>
+            </div>
           ))
         )}
       </div>

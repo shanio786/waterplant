@@ -136,14 +136,14 @@ export default function ProductReturn() {
               <div className="space-y-1.5">
                 <Label>Link to Invoice (optional)</Label>
                 <Select
-                  value={String(form.watch("invoiceId") || "")}
-                  onValueChange={(v) => form.setValue("invoiceId", v ? Number(v) : undefined)}
+                  value={form.watch("invoiceId") ? String(form.watch("invoiceId")) : "none"}
+                  onValueChange={(v) => form.setValue("invoiceId", v && v !== "none" ? Number(v) : undefined)}
                 >
                   <SelectTrigger data-testid="select-invoice">
                     <SelectValue placeholder="Select invoice (optional)..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {customerInvoices.map((inv) => (
                       <SelectItem key={inv.id} value={String(inv.id)}>
                         {inv.invoiceNumber} — {format(new Date(inv.date), "dd MMM yy")} — {formatPKR(inv.netAmount)}

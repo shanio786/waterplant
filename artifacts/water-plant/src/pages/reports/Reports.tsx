@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { getStockSummary, getCustomerBalance } from "@/lib/calculations";
-import type { StockSummary, Customer } from "@/lib/types";
-import { BOTTLE_LABELS } from "@/lib/types";
-import { BarChart3, Users, Package, TrendingDown, Printer } from "lucide-react";
-import { format, startOfDay } from "date-fns";
+import type { StockSummary, BottleSize } from "@/lib/types";
+import { BOTTLE_LABELS, BOTTLE_SIZES } from "@/lib/types";
+import { Users, Package, Printer } from "lucide-react";
+import { format } from "date-fns";
 
 function formatPKR(n: number) {
   return `Rs. ${n.toLocaleString("en-PK")}`;
@@ -118,6 +118,89 @@ function DailyReport() {
   );
 }
 
+function ProductSalesReport() {
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const invoices = useLiveQuery(
+    () => db.invoices.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
+
+  type SaleRow = { qty: number; revenue: number };
+  const byProduct: Record<BottleSize, SaleRow> = {
+    "500ml": { qty: 0, revenue: 0 },
+    "1.5L": { qty: 0, revenue: 0 },
+    "5L": { qty: 0, revenue: 0 },
+    "19L": { qty: 0, revenue: 0 },
+  };
+
+  (invoices || []).forEach((inv) => {
+    inv.items.forEach((item) => {
+      byProduct[item.bottleSize].qty += item.quantity;
+      byProduct[item.bottleSize].revenue += item.amount;
+    });
+  });
+
+  const totalRevenue = Object.values(byProduct).reduce((s, r) => s + r.revenue, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="space-y-1">
+          <Label className="text-xs">From</Label>
+          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" data-testid="input-from-date" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">To</Label>
+          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-36" data-testid="input-to-date" />
+        </div>
+        <div className="text-sm font-semibold mt-5">
+          {invoices?.length || 0} invoices in range
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-muted">
+              <th className="text-left py-2.5 px-3 text-xs font-semibold">Bottle Type</th>
+              <th className="text-right py-2.5 px-3 text-xs font-semibold">Qty Sold</th>
+              <th className="text-right py-2.5 px-3 text-xs font-semibold">Revenue</th>
+              <th className="text-right py-2.5 px-3 text-xs font-semibold">% of Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {BOTTLE_SIZES.map((size) => {
+              const row = byProduct[size];
+              const pct = totalRevenue > 0 ? ((row.revenue / totalRevenue) * 100).toFixed(1) : "0.0";
+              return (
+                <tr key={size} className="border-b" data-testid={`sales-row-${size}`}>
+                  <td className="py-2.5 px-3 font-medium">{BOTTLE_LABELS[size]}</td>
+                  <td className="py-2.5 px-3 text-right">{row.qty}</td>
+                  <td className="py-2.5 px-3 text-right font-medium">{formatPKR(row.revenue)}</td>
+                  <td className="py-2.5 px-3 text-right text-muted-foreground">{pct}%</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="font-semibold border-t">
+              <td className="py-2.5 px-3">Total</td>
+              <td className="py-2.5 px-3 text-right">{BOTTLE_SIZES.reduce((s, sz) => s + byProduct[sz].qty, 0)}</td>
+              <td className="py-2.5 px-3 text-right text-primary">{formatPKR(totalRevenue)}</td>
+              <td className="py-2.5 px-3 text-right">100%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function StockReport() {
   const [stock, setStock] = useState<StockSummary[]>([]);
   useEffect(() => { getStockSummary().then(setStock); }, []);
@@ -207,12 +290,27 @@ export default function Reports() {
       <Tabs defaultValue="daily">
         <TabsList className="mb-4">
           <TabsTrigger value="daily" data-testid="tab-daily">Daily Report</TabsTrigger>
+          <TabsTrigger value="sales" data-testid="tab-sales">Product Sales</TabsTrigger>
           <TabsTrigger value="stock" data-testid="tab-stock">Stock Report</TabsTrigger>
           <TabsTrigger value="balance" data-testid="tab-balance">Customer Balances</TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily">
           <DailyReport />
+        </TabsContent>
+
+        <TabsContent value="sales">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Product-wise Sales Report
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProductSalesReport />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="stock">
