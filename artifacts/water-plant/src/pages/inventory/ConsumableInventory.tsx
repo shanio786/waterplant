@@ -29,8 +29,8 @@ type FormData = z.infer<typeof schema>;
 
 function getBalance(
   entries: { item: string; bottleSize: string; quantity: number }[],
-  fillingRecords: { bottleSize: string; quantity: number }[],
-  products: { bottleSize?: string; labelsPerUnit: number; capsPerUnit: number }[],
+  fillingRecords: { bottleSize: string; productId?: number; quantity: number }[],
+  products: { id?: number; bottleSize?: string; labelsPerUnit: number; capsPerUnit: number }[],
   item: ConsumableItem,
   size: BottleSize
 ) {
@@ -38,11 +38,17 @@ function getBalance(
     .filter((e) => e.item === item && e.bottleSize === size)
     .reduce((s, e) => s + e.quantity, 0);
 
-  const prod = products.find((p) => p.bottleSize === size);
-  const perUnit = item === "label" ? (prod?.labelsPerUnit ?? 1) : (prod?.capsPerUnit ?? 1);
+  // Calculate used per filling record (use product-specific perUnit if productId available)
+  const fallbackProd = products.find((p) => p.bottleSize === size);
   const used = fillingRecords
     .filter((r) => r.bottleSize === size)
-    .reduce((s, r) => s + r.quantity * perUnit, 0);
+    .reduce((s, r) => {
+      const prod = r.productId
+        ? (products.find((p) => p.id === r.productId) ?? fallbackProd)
+        : fallbackProd;
+      const perUnit = item === "label" ? (prod?.labelsPerUnit ?? 1) : (prod?.capsPerUnit ?? 0);
+      return s + r.quantity * perUnit;
+    }, 0);
 
   return { received, used, remaining: Math.max(0, received - used) };
 }

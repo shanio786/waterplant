@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -362,8 +362,40 @@ function ProfitLossReport() {
 }
 
 function StockReport() {
-  const [stock, setStock] = useState<StockSummary[]>([]);
-  useEffect(() => { getStockSummary().then(setStock); }, []);
+  const emptyEntries = useLiveQuery(() => db.emptyStockEntries.toArray());
+  const fillingRecords = useLiveQuery(() => db.fillingRecords.toArray());
+  const invoices = useLiveQuery(() => db.invoices.toArray());
+  const productReturns = useLiveQuery(() => db.productReturns.toArray());
+  const products = useLiveQuery(() => db.products.filter((p) => !!p.bottleSize && p.requiresFilling !== false).toArray());
+
+  const stock = useMemo(() => {
+    if (!emptyEntries || !fillingRecords || !invoices || !productReturns || !products) return [];
+    const productIdToBottleSize = new Map(products.filter((p) => p.id).map((p) => [p.id!, p.bottleSize!]));
+    const productBySize = new Map(products.map((p) => [p.bottleSize!, p]));
+    return BOTTLE_SIZES.map((bottleSize) => {
+      const emptyReceived = emptyEntries.filter((e) => e.bottleSize === bottleSize).reduce((s, e) => s + e.quantity, 0);
+      const filled = fillingRecords.filter((r) => r.bottleSize === bottleSize).reduce((s, r) => s + r.quantity, 0);
+      const fillingProductIds = new Set(products.filter((p) => p.bottleSize === bottleSize).map((p) => p.id));
+      const allItems = invoices.flatMap((inv) => inv.items);
+      const fullSold = allItems.filter((item) => {
+        const itemSize = item.bottleSize || (item.productId ? productIdToBottleSize.get(item.productId) : undefined);
+        return itemSize === bottleSize && (!item.productId || fillingProductIds.has(item.productId));
+      }).reduce((s, item) => s + item.quantity, 0);
+      const fullReturned = productReturns.flatMap((r) => r.items).filter((item) => {
+        const itemSize = item.bottleSize || (item.productId ? productIdToBottleSize.get(item.productId) : undefined);
+        return itemSize === bottleSize;
+      }).reduce((s, item) => s + item.quantity, 0);
+      const prod = productBySize.get(bottleSize);
+      return {
+        bottleSize, emptyReceived, filled,
+        emptyRemaining: Math.max(0, emptyReceived - filled),
+        fullSold, fullReturned,
+        fullRemaining: Math.max(0, filled - fullSold + fullReturned),
+        labelsPerUnit: prod?.labelsPerUnit ?? 1,
+        capsPerUnit: prod?.capsPerUnit ?? 0,
+      };
+    });
+  }, [emptyEntries, fillingRecords, invoices, productReturns, products]);
 
   return (
     <div className="space-y-4">
@@ -397,7 +429,7 @@ function StockReport() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">Labels اور Caps کا حساب: Filled bottles × labels/caps per unit (Products میں set کریں)</p>
+      <p className="text-xs text-muted-foreground">* Stock report real-time update hoti hai — refresh ki zarurat nahi</p>
     </div>
   );
 }
