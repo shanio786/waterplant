@@ -1,0 +1,40 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install root dependencies
+        run: pnpm install --no-frozen-lockfile
+        working-directory: ../..
+
+      - name: Build Electron app
+        run: pnpm run electron:build:win
+        working-directory: .
+        env:
+          ELECTRON_BUILD: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WaterPlantManager-Windows
+          path: dist-electron/Water Plant Manager.exe
+          retention-days: 30
