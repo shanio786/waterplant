@@ -86,7 +86,8 @@ function checkActivation() {
   }
 
   // Verify the saved code is correct for this machine
-  const expected = generateActivationCode(rawId);
+  const idForCode = displayId.replace(/-/g, "");
+  const expected = generateActivationCode(idForCode);
   const savedNormalized = (license.code || "").replace(/-/g, "").toUpperCase().slice(0, 16);
   const expectedNormalized = expected.replace(/-/g, "");
 
@@ -142,9 +143,10 @@ ipcMain.handle("get-machine-status", () => {
 });
 
 ipcMain.handle("submit-activation", (_event, inputCode) => {
-  if (!activationStatus.rawId) return { success: false, message: "Machine ID not available" };
+  if (!activationStatus.displayId) return { success: false, message: "Machine ID not available" };
 
-  const expected = generateActivationCode(activationStatus.rawId);
+  const idForCode = activationStatus.displayId.replace(/-/g, "");
+  const expected = generateActivationCode(idForCode);
   const inputNorm = (inputCode || "").replace(/[-\s]/g, "").toUpperCase().slice(0, 16);
   const expectedNorm = expected.replace(/-/g, "");
 
