@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { getStockSummary } from "@/lib/calculations";
 import type { StockSummary } from "@/lib/types";
 import { BOTTLE_LABELS } from "@/lib/types";
-import { Package, RefreshCw, ShoppingBag, AlertTriangle } from "lucide-react";
+import { Package, RefreshCw, ShoppingBag, AlertTriangle, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 
@@ -22,12 +22,29 @@ export default function StockView() {
 
   useEffect(() => { load(); }, []);
 
-  // Non-filling products stock
   const nonFillingProducts = useLiveQuery(() =>
     db.products.filter((p) => p.isActive && !p.requiresFilling).toArray()
   );
+  const fillingProducts = useLiveQuery(() =>
+    db.products.filter((p) => p.isActive && p.requiresFilling === true && !!p.bottleSize).toArray()
+  );
+  const allFillingRecords = useLiveQuery(() => db.fillingRecords.toArray());
   const productStockEntries = useLiveQuery(() => db.productStockEntries.toArray());
   const allInvoices = useLiveQuery(() => db.invoices.toArray());
+
+  function getFillingProductStock(productId: number) {
+    // filled = fillingRecords with this productId (new) OR bottleSize match if no productId (old)
+    const prod = (fillingProducts || []).find((p) => p.id === productId);
+    const filled = (allFillingRecords || [])
+      .filter((r) => r.productId === productId)
+      .reduce((s, r) => s + r.quantity, 0);
+    const sold = (allInvoices || []).reduce((sum, inv) => {
+      return sum + (inv.items || [])
+        .filter((item) => item.productId === productId)
+        .reduce((s, item) => s + item.quantity, 0);
+    }, 0);
+    return { filled, sold, balance: Math.max(0, filled - sold), prod };
+  }
 
   function getNonFillingStock(productId: number) {
     const stockIn = (productStockEntries || [])
@@ -132,6 +149,60 @@ export default function StockView() {
           </div>
         )}
       </div>
+
+      {/* Per-Product Full Stock (filling products) */}
+      {fillingProducts && fillingProducts.length > 0 && (
+        <div>
+          <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+            <Layers className="h-4 w-4 text-green-600" />
+            Full Stock — Per Product
+          </h2>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-muted">
+                  <th className="text-left py-2.5 px-3 text-xs font-semibold">Product</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-semibold">Bottle</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Filled</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Sold</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Remaining</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fillingProducts.map((p) => {
+                  const { filled, sold, balance } = getFillingProductStock(p.id!);
+                  return (
+                    <tr key={p.id} className="border-b last:border-0">
+                      <td className="py-2.5 px-3 font-medium">{p.name}</td>
+                      <td className="py-2.5 px-3 text-muted-foreground text-xs">
+                        {p.bottleSize ? BOTTLE_LABELS[p.bottleSize] : "—"}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">{filled}</td>
+                      <td className="py-2.5 px-3 text-right">{sold}</td>
+                      <td className={`py-2.5 px-3 text-right font-bold ${balance === 0 ? "text-red-600" : balance < 10 ? "text-orange-600" : "text-green-600"}`}>
+                        {balance}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {balance === 0 ? (
+                          <Badge variant="destructive" className="text-xs">Out</Badge>
+                        ) : balance < 10 ? (
+                          <Badge className="bg-orange-100 text-orange-700 text-xs">Low</Badge>
+                        ) : (
+                          <Badge className="bg-green-100 text-green-700 text-xs">OK</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            * Sirf naye filling records track hote hain per product (jab se FillingProcess mein product select kiya ho)
+          </p>
+        </div>
+      )}
 
       {/* Non-Filling Products Stock */}
       <div>

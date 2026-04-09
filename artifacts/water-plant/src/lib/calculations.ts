@@ -12,10 +12,16 @@ export async function getStockSummary(): Promise<StockSummary[]> {
     db.products.toArray(),
   ]);
 
-  // Only include water bottle products that require filling for stock tracking
-  const productMap = Object.fromEntries(
-    products.filter((p) => p.bottleSize && p.requiresFilling !== false).map((p) => [p.bottleSize!, p])
+  // Filling products only
+  const fillingProducts = products.filter((p) => p.bottleSize && p.requiresFilling !== false);
+
+  // Map: productId → bottleSize (to resolve items that only have productId)
+  const productIdToBottleSize = new Map(
+    fillingProducts.filter((p) => p.id).map((p) => [p.id!, p.bottleSize!])
   );
+
+  // Map: bottleSize → first product (for labelsPerUnit/capsPerUnit)
+  const productBySize = new Map(fillingProducts.map((p) => [p.bottleSize!, p]));
 
   return ALL_SIZES.map((bottleSize) => {
     const emptyReceived = emptyEntries
@@ -28,23 +34,32 @@ export async function getStockSummary(): Promise<StockSummary[]> {
 
     const emptyRemaining = emptyReceived - filled;
 
-    // Only count invoice items for products that require filling
     const fillingProductIds = new Set(
-      products.filter((p) => p.bottleSize === bottleSize && p.requiresFilling !== false).map((p) => p.id)
+      fillingProducts.filter((p) => p.bottleSize === bottleSize).map((p) => p.id)
     );
 
-    const fullSold = invoices
-      .flatMap((inv) => inv.items)
-      .filter((item) => item.bottleSize === bottleSize && (!item.productId || fillingProductIds.has(item.productId)))
+    // Match invoice items either by item.bottleSize OR by looking up product's bottleSize
+    const allItems = invoices.flatMap((inv) => inv.items);
+    const fullSold = allItems
+      .filter((item) => {
+        const itemSize = item.bottleSize
+          || (item.productId ? productIdToBottleSize.get(item.productId) : undefined);
+        return itemSize === bottleSize && (!item.productId || fillingProductIds.has(item.productId));
+      })
       .reduce((sum, item) => sum + item.quantity, 0);
 
+    // Match returns similarly
     const fullReturned = productReturns
       .flatMap((r) => r.items)
-      .filter((item) => item.bottleSize === bottleSize)
+      .filter((item) => {
+        const itemSize = item.bottleSize
+          || (item.productId ? productIdToBottleSize.get(item.productId) : undefined);
+        return itemSize === bottleSize;
+      })
       .reduce((sum, item) => sum + item.quantity, 0);
 
     const fullRemaining = filled - fullSold + fullReturned;
-    const prod = productMap[bottleSize];
+    const prod = productBySize.get(bottleSize);
 
     return {
       bottleSize,

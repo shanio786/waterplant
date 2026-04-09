@@ -90,6 +90,7 @@ export interface EmptyStockEntry {
 
 export interface FillingRecord {
   id?: number;
+  productId?: number;
   bottleSize: BottleSize;
   quantity: number;
   date: string;

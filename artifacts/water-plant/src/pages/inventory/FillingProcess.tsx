@@ -11,13 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
-import { BOTTLE_SIZES, BOTTLE_LABELS } from "@/lib/types";
+import { BOTTLE_LABELS } from "@/lib/types";
 import type { BottleSize } from "@/lib/types";
-import { Droplets, Tag, Package2, AlertTriangle, Info } from "lucide-react";
+import { Droplets, Tag, Package2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 const schema = z.object({
-  bottleSize: z.enum(["500ml", "1.5L", "5L", "19L"]),
+  productId: z.coerce.number().int().positive("Product choose karo"),
   quantity: z.coerce.number().int().positive("Quantity must be positive"),
   date: z.string().min(1),
   notes: z.string().optional(),
@@ -27,15 +27,32 @@ type FormData = z.infer<typeof schema>;
 
 export default function FillingProcess() {
   const { toast } = useToast();
-  const records = useLiveQuery(() =>
-    db.fillingRecords.orderBy("date").reverse().limit(20).toArray()
+
+  const products = useLiveQuery(() =>
+    db.products.filter((p) => p.isActive && p.requiresFilling === true).toArray()
   );
   const emptyEntries = useLiveQuery(() => db.emptyStockEntries.toArray());
   const allFillingRecords = useLiveQuery(() => db.fillingRecords.toArray());
-  const products = useLiveQuery(() =>
-    db.products.filter((p) => p.isActive && p.requiresFilling).toArray()
-  );
   const consumableStock = useLiveQuery(() => db.consumableStock.toArray());
+  const records = useLiveQuery(() =>
+    db.fillingRecords.orderBy("date").reverse().limit(20).toArray()
+  );
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      productId: 0,
+      quantity: 1,
+      date: new Date().toISOString().slice(0, 10),
+      notes: "",
+    },
+  });
+
+  const selectedProductId = Number(form.watch("productId")) || 0;
+  const selectedQty = Number(form.watch("quantity")) || 0;
+
+  const selectedProduct = (products || []).find((p) => p.id === selectedProductId);
+  const selectedSize = selectedProduct?.bottleSize as BottleSize | undefined;
 
   function getAvailableEmpty(size: BottleSize) {
     if (!emptyEntries || !allFillingRecords) return 0;
@@ -48,18 +65,7 @@ export default function FillingProcess() {
     return Math.max(0, received - alreadyFilled);
   }
 
-  function getProductsForSize(size: BottleSize) {
-    return (products || []).filter((p) => p.bottleSize === size);
-  }
-
-  // For consumable tracking, use first matching product (labels/caps are per product)
-  function getProductForSize(size: BottleSize) {
-    return (products || []).find((p) => p.bottleSize === size);
-  }
-
-  function getConsumableBalance(size: BottleSize, item: "label" | "cap"): number {
-    const prod = getProductForSize(size);
-    const perUnit = item === "label" ? (prod?.labelsPerUnit ?? 0) : (prod?.capsPerUnit ?? 0);
+  function getConsumableBalance(size: BottleSize, item: "label" | "cap", perUnit: number): number {
     const received = (consumableStock || [])
       .filter((e) => e.item === item && e.bottleSize === size)
       .reduce((s, e) => s + e.quantity, 0);
@@ -69,63 +75,62 @@ export default function FillingProcess() {
     return Math.max(0, received - used);
   }
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      bottleSize: "19L",
-      quantity: 1,
-      date: new Date().toISOString().slice(0, 10),
-      notes: "",
-    },
-  });
+  const labelsNeeded = selectedProduct ? selectedQty * (selectedProduct.labelsPerUnit ?? 0) : 0;
+  const capsNeeded = selectedProduct ? selectedQty * (selectedProduct.capsPerUnit ?? 0) : 0;
+  const labelsLeft = selectedProduct && selectedSize
+    ? getConsumableBalance(selectedSize, "label", selectedProduct.labelsPerUnit ?? 0)
+    : 0;
+  const capsLeft = selectedProduct && selectedSize
+    ? getConsumableBalance(selectedSize, "cap", selectedProduct.capsPerUnit ?? 0)
+    : 0;
+  const labelShort = labelsNeeded > 0 && labelsLeft < labelsNeeded;
+  const capShort = capsNeeded > 0 && capsLeft < capsNeeded;
+  const availableEmpty = selectedSize ? getAvailableEmpty(selectedSize) : 0;
+
+  function getProductName(productId?: number, bottleSize?: BottleSize) {
+    if (productId) {
+      const p = (products || []).find((x) => x.id === productId);
+      if (p) return p.name;
+    }
+    if (bottleSize) return BOTTLE_LABELS[bottleSize];
+    return "Unknown";
+  }
 
   async function onSubmit(data: FormData) {
-    const available = getAvailableEmpty(data.bottleSize as BottleSize);
-    if (data.quantity > available) {
+    if (!selectedProduct || !selectedSize) {
+      toast({ title: "Product choose karo", variant: "destructive" });
+      return;
+    }
+    if (data.quantity > availableEmpty) {
       toast({
         title: "Insufficient empty stock",
-        description: `Sirf ${available} khaali ${BOTTLE_LABELS[data.bottleSize as BottleSize]} available hain.`,
+        description: `Sirf ${availableEmpty} khaali ${BOTTLE_LABELS[selectedSize]} available hain.`,
         variant: "destructive",
       });
       return;
     }
     await db.fillingRecords.add({
-      bottleSize: data.bottleSize as BottleSize,
+      productId: selectedProduct.id,
+      bottleSize: selectedSize,
       quantity: data.quantity,
       date: data.date,
       notes: data.notes,
       createdAt: new Date().toISOString(),
     });
-    const prod = getProductForSize(data.bottleSize as BottleSize);
-    const labelsUsed = data.quantity * (prod?.labelsPerUnit ?? 0);
-    const capsUsed = data.quantity * (prod?.capsPerUnit ?? 0);
-    const prods = getProductsForSize(data.bottleSize as BottleSize);
-    const prodNames = prods.map((p) => p.name).join(", ");
-    let desc = `${data.quantity} × ${BOTTLE_LABELS[data.bottleSize as BottleSize]} fill ho gayi`;
-    if (prodNames) desc += ` (${prodNames})`;
+    const labelsUsed = data.quantity * (selectedProduct.labelsPerUnit ?? 0);
+    const capsUsed = data.quantity * (selectedProduct.capsPerUnit ?? 0);
+    let desc = `${data.quantity} × ${selectedProduct.name} (${BOTTLE_LABELS[selectedSize]}) fill ho gayi`;
     if (labelsUsed > 0) desc += `. ${labelsUsed} labels use hue.`;
     if (capsUsed > 0) desc += ` ${capsUsed} caps use hue.`;
     toast({ title: "Filling recorded", description: desc });
-    form.reset({ bottleSize: "19L", quantity: 1, date: new Date().toISOString().slice(0, 10), notes: "" });
+    form.reset({ productId: 0, quantity: 1, date: new Date().toISOString().slice(0, 10), notes: "" });
   }
-
-  const selectedSize = form.watch("bottleSize") as BottleSize;
-  const selectedQty = Number(form.watch("quantity")) || 0;
-  const prod = getProductForSize(selectedSize);
-  const productsForSelected = getProductsForSize(selectedSize);
-  const labelsNeeded = selectedQty * (prod?.labelsPerUnit ?? 0);
-  const capsNeeded = selectedQty * (prod?.capsPerUnit ?? 0);
-  const labelsLeft = getConsumableBalance(selectedSize, "label");
-  const capsLeft = getConsumableBalance(selectedSize, "cap");
-  const labelShort = labelsNeeded > 0 && labelsLeft < labelsNeeded;
-  const capShort = capsNeeded > 0 && capsLeft < capsNeeded;
-  const availableEmpty = getAvailableEmpty(selectedSize);
 
   return (
     <div className="max-w-2xl space-y-6" data-testid="page-filling-process">
       <div>
         <h1 className="text-2xl font-bold">Filling Process</h1>
-        <p className="text-sm text-muted-foreground">Khaali bottles fill karo — labels/caps bhi track honge</p>
+        <p className="text-sm text-muted-foreground">Product choose karo aur fill karo — labels/caps bhi track honge</p>
       </div>
 
       <Card>
@@ -139,59 +144,48 @@ export default function FillingProcess() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Bottle Type</Label>
+                <Label>Product <span className="text-destructive">*</span></Label>
                 <Select
-                  value={form.watch("bottleSize")}
-                  onValueChange={(v) => form.setValue("bottleSize", v as BottleSize)}
+                  value={selectedProductId > 0 ? String(selectedProductId) : ""}
+                  onValueChange={(v) => form.setValue("productId", Number(v))}
                 >
-                  <SelectTrigger data-testid="select-bottle-size">
-                    <SelectValue />
+                  <SelectTrigger data-testid="select-product">
+                    <SelectValue placeholder="Product choose karo..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {BOTTLE_SIZES.map((size) => {
-                      const prods = getProductsForSize(size);
-                      return (
-                        <SelectItem key={size} value={size}>
-                          <div className="flex flex-col">
-                            <span>{BOTTLE_LABELS[size]}</span>
-                            {prods.length > 0 && (
-                              <span className="text-xs text-muted-foreground">
-                                {prods.map((p) => p.name).join(", ")}
-                              </span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
+                    {(products || []).length === 0 && (
+                      <SelectItem value="0" disabled>
+                        Koi filling product nahi — Products mein add karo
+                      </SelectItem>
+                    )}
+                    {(products || []).map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        <div className="flex flex-col">
+                          <span>{p.name}</span>
+                          {p.bottleSize && (
+                            <span className="text-xs text-muted-foreground">
+                              {BOTTLE_LABELS[p.bottleSize]}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-
-                {/* Show products for selected size */}
-                {productsForSelected.length > 0 && (
-                  <div className="flex items-start gap-1.5 rounded-md bg-blue-50 border border-blue-100 px-2.5 py-2 text-xs text-blue-700">
-                    <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-medium">Products yahan fill ho rahe hain:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {productsForSelected.map((p) => (
-                          <Badge
-                            key={p.id}
-                            className="bg-blue-100 text-blue-700 text-xs font-normal"
-                          >
-                            {p.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                {form.formState.errors.productId && (
+                  <p className="text-xs text-destructive">{form.formState.errors.productId.message}</p>
                 )}
 
-                <p className="text-xs text-muted-foreground">
-                  Khaali available:{" "}
-                  <strong className={availableEmpty === 0 ? "text-red-600" : "text-green-600"}>
-                    {availableEmpty}
-                  </strong>
-                </p>
+                {selectedProduct && selectedSize && (
+                  <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                    <p>Bottle size: <strong>{BOTTLE_LABELS[selectedSize]}</strong></p>
+                    <p>Khaali available:{" "}
+                      <strong className={availableEmpty === 0 ? "text-red-600" : "text-green-600"}>
+                        {availableEmpty}
+                      </strong>
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -208,73 +202,43 @@ export default function FillingProcess() {
               </div>
             </div>
 
-            {/* Labels & Caps preview */}
-            {selectedQty > 0 && (
+            {selectedProduct && selectedQty > 0 && (labelsNeeded > 0 || capsNeeded > 0) && (
               <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   {selectedQty} botol ke liye darkar:
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {labelsNeeded > 0 && (
-                    <div
-                      className={`flex items-center gap-2 rounded-md p-2 text-sm ${
-                        labelShort
-                          ? "bg-red-50 border border-red-200"
-                          : "bg-blue-50 border border-blue-100"
-                      }`}
-                    >
-                      <Tag
-                        className={`h-4 w-4 shrink-0 ${labelShort ? "text-red-500" : "text-blue-500"}`}
-                      />
+                    <div className={`flex items-center gap-2 rounded-md p-2 text-sm ${labelShort ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-100"}`}>
+                      <Tag className={`h-4 w-4 shrink-0 ${labelShort ? "text-red-500" : "text-blue-500"}`} />
                       <div>
                         <p className="font-semibold">{labelsNeeded} Labels</p>
-                        <p
-                          className={`text-xs ${labelShort ? "text-red-600" : "text-muted-foreground"}`}
-                        >
+                        <p className={`text-xs ${labelShort ? "text-red-600" : "text-muted-foreground"}`}>
                           {labelShort ? (
                             <span className="flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3" />
                               Sirf {labelsLeft} available
                             </span>
-                          ) : (
-                            `${labelsLeft} available`
-                          )}
+                          ) : `${labelsLeft} available`}
                         </p>
                       </div>
                     </div>
                   )}
                   {capsNeeded > 0 && (
-                    <div
-                      className={`flex items-center gap-2 rounded-md p-2 text-sm ${
-                        capShort
-                          ? "bg-red-50 border border-red-200"
-                          : "bg-purple-50 border border-purple-100"
-                      }`}
-                    >
-                      <Package2
-                        className={`h-4 w-4 shrink-0 ${capShort ? "text-red-500" : "text-purple-500"}`}
-                      />
+                    <div className={`flex items-center gap-2 rounded-md p-2 text-sm ${capShort ? "bg-red-50 border border-red-200" : "bg-purple-50 border border-purple-100"}`}>
+                      <Package2 className={`h-4 w-4 shrink-0 ${capShort ? "text-red-500" : "text-purple-500"}`} />
                       <div>
                         <p className="font-semibold">{capsNeeded} Caps</p>
-                        <p
-                          className={`text-xs ${capShort ? "text-red-600" : "text-muted-foreground"}`}
-                        >
+                        <p className={`text-xs ${capShort ? "text-red-600" : "text-muted-foreground"}`}>
                           {capShort ? (
                             <span className="flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3" />
                               Sirf {capsLeft} available
                             </span>
-                          ) : (
-                            `${capsLeft} available`
-                          )}
+                          ) : `${capsLeft} available`}
                         </p>
                       </div>
                     </div>
-                  )}
-                  {labelsNeeded === 0 && capsNeeded === 0 && (
-                    <p className="text-xs text-muted-foreground col-span-2">
-                      Labels/Caps configure nahi hain — Products page mein update karein
-                    </p>
                   )}
                 </div>
               </div>
@@ -287,12 +251,7 @@ export default function FillingProcess() {
 
             <div className="space-y-1.5">
               <Label>Notes (optional)</Label>
-              <Textarea
-                rows={2}
-                placeholder="Koi note..."
-                data-testid="input-notes"
-                {...form.register("notes")}
-              />
+              <Textarea rows={2} placeholder="Koi note..." data-testid="input-notes" {...form.register("notes")} />
             </div>
 
             <Button type="submit" className="w-full" data-testid="button-submit">
@@ -312,20 +271,18 @@ export default function FillingProcess() {
           ) : (
             <div className="divide-y">
               {records.map((r) => {
-                const p = getProductForSize(r.bottleSize);
-                const prods = getProductsForSize(r.bottleSize);
-                const lblUsed = r.quantity * (p?.labelsPerUnit ?? 0);
-                const capUsed = r.quantity * (p?.capsPerUnit ?? 0);
+                const prod = (products || []).find((p) => p.id === r.productId);
+                const lblUsed = r.quantity * (prod?.labelsPerUnit ?? 0);
+                const capUsed = r.quantity * (prod?.capsPerUnit ?? 0);
+                const displayName = getProductName(r.productId, r.bottleSize);
                 return (
                   <div key={r.id} className="py-2.5 text-sm" data-testid={`record-${r.id}`}>
                     <div className="flex justify-between">
                       <div>
-                        <span className="font-medium">{BOTTLE_LABELS[r.bottleSize]}</span>
-                        {prods.length > 0 && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            ({prods.map((x) => x.name).join(", ")})
-                          </span>
-                        )}
+                        <span className="font-medium">{displayName}</span>
+                        <Badge variant="outline" className="ml-2 text-xs font-normal">
+                          {BOTTLE_LABELS[r.bottleSize]}
+                        </Badge>
                         {r.notes && (
                           <span className="text-muted-foreground ml-2">— {r.notes}</span>
                         )}
@@ -338,7 +295,7 @@ export default function FillingProcess() {
                       </div>
                     </div>
                     {(lblUsed > 0 || capUsed > 0) && (
-                      <div className="flex gap-3 mt-1 ml-0.5">
+                      <div className="flex gap-3 mt-1">
                         {lblUsed > 0 && (
                           <Badge variant="secondary" className="text-xs font-normal gap-1">
                             <Tag className="h-3 w-3 text-blue-500" />
