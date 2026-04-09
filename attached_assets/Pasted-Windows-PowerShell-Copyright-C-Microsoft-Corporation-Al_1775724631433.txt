@@ -1,0 +1,52 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Mehryam\Desktop\waterplant> git clone https://github.com/shanio786/waterplant.git
+Cloning into 'waterplant'...
+remote: Enumerating objects: 394, done.
+remote: Counting objects: 100% (394/394), done.
+remote: Compressing objects: 100% (240/240), done.
+remote: Total 394 (delta 163), reused 363 (delta 132), pack-reused 0 (from 0)
+Receiving objects: 100% (394/394), 360.38 KiB | 1.68 MiB/s, done.
+Resolving deltas: 100% (163/163), done.
+PS C:\Users\Mehryam\Desktop\waterplant> cd waterplant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> npm install -g pnpm
+
+added 1 package in 5s
+
+1 package is looking for funding
+  run `npm fund` for details
+npm notice
+npm notice New minor version of npm available! 11.8.0 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
+npm notice
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> pnpm install
+Scope: all 9 workspace projects
+Lockfile is up to date, resolution step is skipped
+Packages: +728
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ WARN  Tarball download average speed 21 KiB/s (size 23 KiB) is below 50 KiB/s: https://registry.npmjs.org/picomatch/-/picomatch-2.3.1.tgz (GET)
+ WARN  Tarball download average speed 11 KiB/s (size 21 KiB) is below 50 KiB/s: https://registry.npmjs.org/motion-utils/-/motion-utils-12.29.2.tgz (GET)
+ WARN  Tarball download average speed 18 KiB/s (size 34 KiB) is below 50 KiB/s: https://registry.npmjs.org/@replit/vite-plugin-cartographer/-/vite-plugin-cartographer-0.5.1.tgz (GET)
+ WARN  Tarball download average speed 16 KiB/s (size 17 KiB) is below 50 KiB/s: https://registry.npmjs.org/@types/d3-shape/-/d3-shape-3.1.8.tgz (GET)
+ WARN  Tarball download average speed 8 KiB/s (size 16 KiB) is below 50 KiB/s: https://registry.npmjs.org/roarr/-/roarr-2.15.4.tgz (GET)
+ WARN  10 other warnings
+Downloading 7zip-bin@5.2.0: 5.63 MB/5.63 MB, done
+Downloading react-icons@5.6.0: 22.42 MB/22.42 MB, done
+Downloading app-builder-bin@5.0.0-alpha.12: 72.51 MB/72.51 MB, done
+Progress: resolved 728, reused 0, downloaded 728, added 728, done
+node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild: Running postinstall script, done in 1.4s
+
+devDependencies:
++ prettier 3.8.1
++ typescript 5.9.3
+
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm…
+│ 'sh' is not recognized as an internal or external command,
+│ operable program or batch file.
+└─ Failed in 42ms at C:\Users\Mehryam\Desktop\waterplant\waterplant
+ ELIFECYCLE  Command failed with exit code 1.
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant>
