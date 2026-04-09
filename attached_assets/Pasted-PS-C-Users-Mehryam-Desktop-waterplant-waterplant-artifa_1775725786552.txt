@@ -1,0 +1,45 @@
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> cd C:\Users\Mehryam\Desktop\waterplant\waterplant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> git pull
+remote: Enumerating objects: 22, done.
+remote: Counting objects: 100% (22/22), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 16 (delta 9), reused 16 (delta 9), pack-reused 0 (from 0)
+Unpacking objects: 100% (16/16), 68.15 KiB | 520.00 KiB/s, done.
+From https://github.com/shanio786/waterplant
+   fab6bb4..60b7842  main       -> origin/main
+Updating fab6bb4..60b7842
+Fast-forward
+ .npmrc                                             |   1 +
+ artifacts/water-plant/package.json                 |   4 ++
+ ...-waterplant-waterplant-cd-art_1775725621532.txt |  47 +++++++++++++++++++++
+ .../Screenshot_2026-04-09_135957_1775725206659.png | Bin 0 -> 36503 bytes
+ .../Screenshot_2026-04-09_140209_1775725335110.png | Bin 0 -> 32409 bytes
+ 5 files changed, 52 insertions(+)
+ create mode 100644 attached_assets/Pasted-PS-C-Users-Mehryam-Desktop-waterplant-waterplant-cd-art_1775725621532.txt
+ create mode 100644 attached_assets/Screenshot_2026-04-09_135957_1775725206659.png
+ create mode 100644 attached_assets/Screenshot_2026-04-09_140209_1775725335110.png
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> Remove-Item -Recurse -Force node_modules
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> pnpm install
+Scope: all 9 workspace projects
+ WARN  4 deprecated subdependencies found: boolean@3.2.0, glob@10.5.0, glob@7.2.3, inflight@1.0.6
+Packages: +730
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 749, reused 729, downloaded 12, added 730, done
+node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild: Running postinstall script, done in 1.5s
+ WARN  Issues with peer dependencies found
+artifacts/water-plant
+└─┬ electron-builder 26.8.1
+  ├─┬ dmg-builder 26.8.1
+  │ └─┬ app-builder-lib 26.8.1
+  │   └── ✕ missing peer electron-builder-squirrel-windows@26.8.1
+  └─┬ app-builder-lib 26.8.1
+    └── ✕ missing peer electron-builder-squirrel-windows@26.8.1
+Peer dependencies that should be installed:
+  electron-builder-squirrel-windows@26.8.1
+
+devDependencies:
++ prettier 3.8.1
++ typescript 5.9.3 (6.0.2 is available)
+
+Done in 13.3s using pnpm v10.33.0
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant>
