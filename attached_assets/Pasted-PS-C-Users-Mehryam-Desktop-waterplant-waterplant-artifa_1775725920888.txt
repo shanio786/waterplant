@@ -1,0 +1,34 @@
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> cd C:\Users\Mehryam\Desktop\waterplant\waterplant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> pnpm install --no-frozen-lockfile
+Scope: all 9 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+Done in 2.3s using pnpm v10.33.0
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> cd artifacts\water-plant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> pnpm run electron:build:win
+
+> @workspace/water-plant@0.0.0 electron:build:win C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> cross-env ELECTRON_BUILD=true pnpm run build && electron-builder --win --config electron-builder.yml
+
+
+> @workspace/water-plant@0.0.0 build C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> vite build --config vite.config.ts
+
+failed to load config from C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\vite.config.ts
+error during build:
+Error: Cannot find module '../lightningcss.win32-x64-msvc.node'
+Require stack:
+- C:\Users\Mehryam\Desktop\waterplant\waterplant\node_modules\.pnpm\lightningcss@1.31.1\node_modules\lightningcss\node\index.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+    at Module._load (node:internal/modules/cjs/loader:1043:27)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (C:\Users\Mehryam\Desktop\waterplant\waterplant\node_modules\.pnpm\lightningcss@1.31.1\node_modules\lightningcss\node\index.js:22:22)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at cjsLoader (node:internal/modules/esm/translators:298:15)
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
