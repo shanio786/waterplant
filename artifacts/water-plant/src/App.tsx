@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -95,15 +96,23 @@ function ActivationGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const isElectron = !!(window as any).electronAPI;
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ActivationGate>
           <AuthProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <AppRoutes />
-            </WouterRouter>
+            {isElectron ? (
+              <WouterRouter hook={useHashLocation}>
+                <AppRoutes />
+              </WouterRouter>
+            ) : (
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <AppRoutes />
+              </WouterRouter>
+            )}
             <Toaster />
           </AuthProvider>
         </ActivationGate>

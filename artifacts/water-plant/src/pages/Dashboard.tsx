@@ -39,7 +39,15 @@ export default function Dashboard() {
     );
   }
 
-  const s = summary!;
+  if (!summary) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        No data available. Start by adding products and customers.
+      </div>
+    );
+  }
+
+  const s = summary;
   const today = new Date().toLocaleDateString("en-PK", {
     weekday: "long",
     year: "numeric",
