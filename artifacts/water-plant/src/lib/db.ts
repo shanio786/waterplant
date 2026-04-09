@@ -13,9 +13,7 @@ import type {
   BusinessSettings,
   ConsumableStock,
 } from './types';
-
-// Pre-computed SHA-256('dev123') — used for seeding to avoid crypto.subtle dependency at init time
-const DEV_PASSWORD_HASH = '87274af01876341455b32d805946f272871bb42effa6604dccf28bb027afa82b';
+import { hashPassword } from './auth';
 
 export class WaterPlantDB extends Dexie {
   customers!: Table<Customer, number>;
@@ -122,9 +120,10 @@ export class WaterPlantDB extends Dexie {
 
         const userCount = await tx.table('users').count();
         if (userCount === 0) {
+          const devHash = await hashPassword('dev123');
           await tx.table('users').add({
             username: 'dev',
-            passwordHash: DEV_PASSWORD_HASH,
+            passwordHash: devHash,
             role: 'dev',
             name: 'Developer',
             createdAt: now,
@@ -157,6 +156,35 @@ export class WaterPlantDB extends Dexie {
       users: '++id, username, role',
       businessSettings: '++id',
       consumableStock: '++id, item, bottleSize, date, createdAt',
+    });
+
+    this.on('populate', async () => {
+      const now = new Date().toISOString();
+      const devHash = await hashPassword('dev123');
+
+      await this.users.add({
+        username: 'dev',
+        passwordHash: devHash,
+        role: 'dev',
+        name: 'Developer',
+        createdAt: now,
+      });
+
+      await this.businessSettings.add({
+        companyName: 'Water Plant',
+        phone: '',
+        address: '',
+        city: '',
+        footerNote: 'Thank you for your business!',
+        updatedAt: now,
+      });
+
+      await this.products.bulkAdd([
+        { name: '500 ml Bottle', unit: '500ml', sellingPrice: 30, costPrice: 15, labelsPerUnit: 1, capsPerUnit: 1, category: 'water_bottle', bottleSize: '500ml', isDefault: true, isActive: true, createdAt: now },
+        { name: '1.5 Liter Bottle', unit: '1.5L', sellingPrice: 60, costPrice: 30, labelsPerUnit: 1, capsPerUnit: 1, category: 'water_bottle', bottleSize: '1.5L', isDefault: true, isActive: true, createdAt: now },
+        { name: '5 Liter Bottle', unit: '5L', sellingPrice: 100, costPrice: 50, labelsPerUnit: 1, capsPerUnit: 1, category: 'water_bottle', bottleSize: '5L', isDefault: true, isActive: true, createdAt: now },
+        { name: '19 Liter Can', unit: '19L', sellingPrice: 150, costPrice: 80, labelsPerUnit: 0, capsPerUnit: 1, category: 'water_bottle', bottleSize: '19L', isDefault: true, isActive: true, createdAt: now },
+      ]);
     });
   }
 }
