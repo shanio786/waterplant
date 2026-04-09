@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
       { label: "Receive Empty Bottles", href: "/inventory/receive" },
       { label: "Filling Process", href: "/inventory/fill" },
       { label: "Stock View", href: "/inventory/stock" },
+      { label: "Product Stock (Non-Filling)", href: "/inventory/product-stock" },
       { label: "Labels & Caps", href: "/inventory/consumables" },
     ],
   },

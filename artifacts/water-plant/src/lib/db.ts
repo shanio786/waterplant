@@ -12,6 +12,7 @@ import type {
   User,
   BusinessSettings,
   ConsumableStock,
+  ProductStockEntry,
 } from './types';
 import { hashPassword } from './auth';
 
@@ -35,6 +36,7 @@ export class WaterPlantDB extends Dexie {
   users!: Table<User, number>;
   businessSettings!: Table<BusinessSettings, number>;
   consumableStock!: Table<ConsumableStock, number>;
+  productStockEntries!: Table<ProductStockEntry, number>;
 
   constructor() {
     super('WaterPlantDB');
@@ -130,6 +132,23 @@ export class WaterPlantDB extends Dexie {
           }
         });
       });
+
+    // Version 5: non-filling product stock entries
+    this.version(5).stores({
+      customers: '++id, name, phone, createdAt',
+      emptyStockEntries: '++id, bottleSize, date, createdAt',
+      fillingRecords: '++id, bottleSize, date, createdAt',
+      invoices: '++id, invoiceNumber, customerId, date, paymentType, createdAt',
+      payments: '++id, customerId, date, createdAt',
+      productReturns: '++id, customerId, invoiceId, date, createdAt',
+      canReturns: '++id, customerId, date, createdAt',
+      expenses: '++id, category, date, createdAt',
+      products: '++id, name, category, isActive',
+      users: '++id, username, role',
+      businessSettings: '++id',
+      consumableStock: '++id, item, bottleSize, date, createdAt',
+      productStockEntries: '++id, productId, date, createdAt',
+    });
 
     this.on('populate', async () => {
       const now = new Date().toISOString();

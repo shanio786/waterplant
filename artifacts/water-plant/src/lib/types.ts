@@ -214,3 +214,14 @@ export interface ConsumableStock {
   notes?: string;
   createdAt: string;
 }
+
+// Stock entry for non-filling products (juice, drinks etc. purchased externally)
+export interface ProductStockEntry {
+  id?: number;
+  productId: number;
+  quantity: number;
+  costPrice: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
