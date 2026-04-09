@@ -774,7 +774,7 @@ function PaymentsReport() {
           </tbody>
           {(payments || []).length > 0 && (
             <tfoot><tr className="font-bold border-t bg-muted/50">
-              <td colSpan={4} className="py-2.5 px-3">Total</td>
+              <td colSpan={3} className="py-2.5 px-3">Total ({(payments || []).length} payments)</td>
               <td className="py-2.5 px-3 text-right text-green-600">{formatPKR(total)}</td>
             </tr></tfoot>
           )}

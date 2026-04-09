@@ -14,8 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/db";
-import { PRODUCT_CATEGORIES } from "@/lib/types";
-import type { Product, ProductCategory } from "@/lib/types";
+import { PRODUCT_CATEGORIES, BOTTLE_SIZES, BOTTLE_LABELS } from "@/lib/types";
+import type { Product, ProductCategory, BottleSize } from "@/lib/types";
 import { Plus, Pencil, Trash2, Package } from "lucide-react";
 
 const schema = z.object({
@@ -27,6 +27,7 @@ const schema = z.object({
   capsPerUnit: z.coerce.number().int().min(0),
   category: z.enum(["water_bottle", "beverage", "other"]),
   requiresFilling: z.boolean(),
+  bottleSize: z.enum(["500ml", "1.5L", "5L", "19L"]).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -55,7 +56,7 @@ export default function Products() {
     resolver: zodResolver(schema),
     defaultValues: {
       name: "", unit: "", sellingPrice: 0, costPrice: 0,
-      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false,
+      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false, bottleSize: undefined,
     },
   });
 
@@ -63,7 +64,7 @@ export default function Products() {
     setEditProduct(null);
     form.reset({
       name: "", unit: "", sellingPrice: 0, costPrice: 0,
-      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false,
+      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false, bottleSize: undefined,
     });
     setDialogOpen(true);
   }
@@ -75,18 +76,23 @@ export default function Products() {
       costPrice: p.costPrice, labelsPerUnit: p.labelsPerUnit,
       capsPerUnit: p.capsPerUnit, category: p.category,
       requiresFilling: p.requiresFilling ?? false,
+      bottleSize: p.bottleSize as BottleSize | undefined,
     });
     setDialogOpen(true);
   }
 
   async function onSubmit(data: FormData) {
+    const productData = {
+      ...data,
+      category: data.category as ProductCategory,
+      bottleSize: data.requiresFilling ? (data.bottleSize as BottleSize | undefined) : undefined,
+    };
     if (editProduct) {
-      await db.products.update(editProduct.id!, { ...data, category: data.category as ProductCategory });
+      await db.products.update(editProduct.id!, productData);
       toast({ title: "Product updated" });
     } else {
       await db.products.add({
-        ...data,
-        category: data.category as ProductCategory,
+        ...productData,
         isDefault: false,
         isActive: true,
         createdAt: new Date().toISOString(),
@@ -158,10 +164,13 @@ export default function Products() {
                       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span>Unit: <strong className="text-foreground">{p.unit}</strong></span>
                         <span>Sell: <strong className="text-green-600">{formatPKR(p.sellingPrice)}</strong></span>
-                        <span>Labels: <strong className="text-foreground">{p.labelsPerUnit}/unit</strong></span>
+                        {p.requiresFilling && p.bottleSize && (
+                          <span>Bottle: <strong className="text-blue-600">{BOTTLE_LABELS[p.bottleSize]}</strong></span>
+                        )}
                         <span>Cost: <strong className="text-orange-600">{formatPKR(p.costPrice)}</strong></span>
-                        <span>Caps: <strong className="text-foreground">{p.capsPerUnit}/unit</strong></span>
+                        <span>Labels: <strong className="text-foreground">{p.labelsPerUnit}/unit</strong></span>
                         <span>Margin: <strong className={profit >= 0 ? "text-green-600" : "text-destructive"}>{margin}%</strong></span>
+                        <span>Caps: <strong className="text-foreground">{p.capsPerUnit}/unit</strong></span>
                       </div>
                     </div>
                     {canEdit && (
@@ -240,14 +249,41 @@ export default function Products() {
             <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
               <div>
                 <p className="text-sm font-medium">Requires Filling</p>
-                <p className="text-xs text-muted-foreground">Turn OFF for external products (juice, etc.) that don't go through filling process</p>
+                <p className="text-xs text-muted-foreground">Juice / bahari products ke liye OFF karo (filling process se nahi guzarta)</p>
               </div>
               <Switch
                 checked={form.watch("requiresFilling")}
-                onCheckedChange={(v) => form.setValue("requiresFilling", v)}
+                onCheckedChange={(v) => {
+                  form.setValue("requiresFilling", v);
+                  if (!v) form.setValue("bottleSize", undefined);
+                }}
                 data-testid="switch-requires-filling"
               />
             </div>
+
+            {form.watch("requiresFilling") && (
+              <div className="space-y-1.5">
+                <Label>Bottle Size <span className="text-destructive">*</span></Label>
+                <Select
+                  value={form.watch("bottleSize") || ""}
+                  onValueChange={(v) => form.setValue("bottleSize", v as BottleSize)}
+                >
+                  <SelectTrigger data-testid="select-bottle-size">
+                    <SelectValue placeholder="Bottle size choose karo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOTTLE_SIZES.map((size) => (
+                      <SelectItem key={size} value={size}>
+                        {BOTTLE_LABELS[size]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Yeh product kaunsi size ki bottle mein fill hota hai — filling aur stock tracking ke liye zaruri hai
+                </p>
+              </div>
+            )}
             <div className="flex gap-2 pt-1">
               <Button type="submit" className="flex-1" data-testid="button-save-product">
                 {editProduct ? "Update" : "Add Product"}

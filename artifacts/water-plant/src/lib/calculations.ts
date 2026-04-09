@@ -1,5 +1,5 @@
 import { db } from './db';
-import type { BottleSize, StockSummary, CustomerLedgerEntry, DashboardSummary } from './types';
+import type { BottleSize, StockSummary, CustomerLedgerEntry, DashboardSummary, NonFillingStockAlert } from './types';
 
 const ALL_SIZES: BottleSize[] = ['500ml', '1.5L', '5L', '19L'];
 
@@ -175,7 +175,7 @@ export async function getCustomerLedger(customerId: number): Promise<CustomerLed
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const today = new Date().toISOString().slice(0, 10);
 
-  const [todayInvoices, todayExpenses, todayPayments, allInvoices, allPayments, allReturns, stock] =
+  const [todayInvoices, todayExpenses, todayPayments, allInvoices, allPayments, allReturns, stock, nonFillingProducts, productStockEntries] =
     await Promise.all([
       db.invoices.where('date').equals(today).toArray(),
       db.expenses.where('date').equals(today).toArray(),
@@ -184,6 +184,8 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       db.payments.toArray(),
       db.productReturns.toArray(),
       getStockSummary(),
+      db.products.filter((p) => p.isActive && !p.requiresFilling).toArray(),
+      db.productStockEntries.toArray(),
     ]);
 
   const todaySales = todayInvoices.reduce((sum, inv) => sum + inv.netAmount, 0);
@@ -214,6 +216,22 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
   const stockAlerts = stock.filter((s) => s.fullRemaining < 10 || s.emptyRemaining < 10);
 
+  // Non-filling product stock alerts
+  const nonFillingStockAlerts: NonFillingStockAlert[] = nonFillingProducts
+    .map((p) => {
+      const stockIn = productStockEntries
+        .filter((e) => e.productId === p.id)
+        .reduce((s, e) => s + e.quantity, 0);
+      const sold = allInvoices.reduce((sum, inv) => {
+        return sum + (inv.items || [])
+          .filter((item) => item.productId === p.id)
+          .reduce((s, item) => s + item.quantity, 0);
+      }, 0);
+      const balance = Math.max(0, stockIn - sold);
+      return { productId: p.id!, productName: p.name, balance };
+    })
+    .filter((a) => a.balance < 10);
+
   return {
     todaySales,
     todayCash,
@@ -222,6 +240,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     todayPaymentsReceived,
     totalReceivable,
     stockAlerts,
+    nonFillingStockAlerts,
   };
 }
 

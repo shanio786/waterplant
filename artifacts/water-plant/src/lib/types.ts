@@ -193,6 +193,12 @@ export interface CustomerLedgerEntry {
   refId?: number;
 }
 
+export interface NonFillingStockAlert {
+  productId: number;
+  productName: string;
+  balance: number;
+}
+
 export interface DashboardSummary {
   todaySales: number;
   todayCash: number;
@@ -201,6 +207,7 @@ export interface DashboardSummary {
   todayPaymentsReceived: number;
   totalReceivable: number;
   stockAlerts: StockSummary[];
+  nonFillingStockAlerts: NonFillingStockAlert[];
 }
 
 export type ConsumableItem = 'label' | 'cap';

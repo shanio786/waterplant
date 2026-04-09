@@ -174,9 +174,9 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {s.stockAlerts.length === 0 ? (
+            {s.stockAlerts.length === 0 && s.nonFillingStockAlerts.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                All stock levels are healthy.
+                Tamam stock levels theek hain.
               </p>
             ) : (
               <div className="space-y-2">
@@ -198,6 +198,24 @@ export default function Dashboard() {
                         Full: {alert.fullRemaining}
                       </Badge>
                     </div>
+                  </div>
+                ))}
+                {s.nonFillingStockAlerts.map((alert) => (
+                  <div
+                    key={alert.productId}
+                    className="flex items-center justify-between text-sm"
+                    data-testid={`nf-stock-alert-${alert.productId}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className={`h-4 w-4 ${alert.balance === 0 ? "text-red-500" : "text-orange-500"}`} />
+                      <span className="font-medium">{alert.productName}</span>
+                    </div>
+                    <Badge
+                      className={alert.balance === 0 ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}
+                      variant="secondary"
+                    >
+                      {alert.balance === 0 ? "Out of Stock" : `Low: ${alert.balance}`}
+                    </Badge>
                   </div>
                 ))}
               </div>

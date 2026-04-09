@@ -18,6 +18,7 @@ const TABLES = [
   "products",
   "businessSettings",
   "consumableStock",
+  "productStockEntries",
 ] as const;
 
 type BackupData = {
@@ -44,7 +45,7 @@ export default function BackupRestore() {
       }
 
       const backup: BackupData = {
-        version: 3,
+        version: 5,
         exportedAt: new Date().toISOString(),
         appName: "WaterPlantManager",
         tables,
