@@ -31,8 +31,16 @@ function DailyReport() {
   const [pendingBalances, setPendingBalances] = useState<Record<number, number>>({});
 
   const totalSales = (invoices || []).reduce((s, i) => s + i.netAmount, 0);
-  const cashSales = (invoices || []).filter((i) => i.paymentType === "cash").reduce((s, i) => s + i.netAmount, 0);
-  const creditSales = (invoices || []).filter((i) => i.paymentType === "credit").reduce((s, i) => s + i.netAmount, 0);
+  // Cash = actually paid amounts (cash + partial paid portion)
+  const cashSales = (invoices || []).reduce((s, i) => {
+    const paid = i.paidAmount ?? (i.paymentType === "cash" ? i.netAmount : 0);
+    return s + paid;
+  }, 0);
+  // Credit = unpaid portions
+  const creditSales = (invoices || []).reduce((s, i) => {
+    const paid = i.paidAmount ?? (i.paymentType === "cash" ? i.netAmount : 0);
+    return s + (i.netAmount - paid);
+  }, 0);
   const totalExpenses = (expenses || []).reduce((s, e) => s + e.amount, 0);
   const totalPayments = (payments || []).reduce((s, p) => s + p.amount, 0);
 
@@ -42,11 +50,16 @@ function DailyReport() {
     if (!customers || !allInvoices || !allPayments || !allReturns) return;
     const balMap: Record<number, number> = {};
     customers.forEach((c) => {
-      const creditInvs = (allInvoices || []).filter((inv) => inv.customerId === c.id! && inv.paymentType === "credit");
-      const totalCredit = creditInvs.reduce((s, i) => s + i.netAmount, 0);
+      // Total unpaid = sum of (netAmount - paidAmount) for each invoice
+      const totalUnpaid = (allInvoices || [])
+        .filter((inv) => inv.customerId === c.id!)
+        .reduce((s, inv) => {
+          const paidAmt = inv.paidAmount ?? (inv.paymentType === "cash" ? inv.netAmount : 0);
+          return s + (inv.netAmount - paidAmt);
+        }, 0);
       const paid = (allPayments || []).filter((p) => p.customerId === c.id!).reduce((s, p) => s + p.amount, 0);
       const returned = (allReturns || []).filter((r) => r.customerId === c.id!).reduce((s, r) => s + r.totalCredit, 0);
-      balMap[c.id!] = Math.max(0, totalCredit - paid - returned);
+      balMap[c.id!] = Math.max(0, totalUnpaid - paid - returned);
     });
     setPendingBalances(balMap);
   }, [customers, allInvoices, allPayments, allReturns]);
@@ -106,8 +119,8 @@ function DailyReport() {
                     <td className="py-2">{inv.invoiceNumber}</td>
                     <td className="py-2">{customerMap[inv.customerId]?.name || "?"}</td>
                     <td className="py-2">
-                      <Badge variant={inv.paymentType === "cash" ? "default" : "outline"} className={`text-xs ${inv.paymentType === "credit" ? "border-orange-400 text-orange-600" : ""}`}>
-                        {inv.paymentType === "cash" ? "Cash" : "Credit"}
+                      <Badge variant="secondary" className={`text-xs ${inv.paymentType === "cash" ? "bg-green-100 text-green-700" : inv.paymentType === "partial" ? "bg-yellow-100 text-yellow-700" : "bg-orange-100 text-orange-600"}`}>
+                        {inv.paymentType === "cash" ? "Cash" : inv.paymentType === "partial" ? "Partial" : "Credit"}
                       </Badge>
                     </td>
                     <td className="py-2 text-right font-medium">{formatPKR(inv.netAmount)}</td>
@@ -532,7 +545,12 @@ function CustomerLedgerReport() {
 
   type LedgerRow = { date: string; type: string; description: string; debit: number; credit: number; };
   const rows: LedgerRow[] = [
-    ...filtInvoices.map((i) => ({ date: i.date, type: i.paymentType === "cash" ? "Cash Sale" : "Credit Sale", description: i.invoiceNumber, debit: i.paymentType === "credit" ? i.netAmount : 0, credit: 0 })),
+    ...filtInvoices.map((i) => {
+      const paidAmt = i.paidAmount ?? (i.paymentType === "cash" ? i.netAmount : 0);
+      const unpaid = i.netAmount - paidAmt;
+      const typeLabel = i.paymentType === "cash" ? "Cash Sale" : i.paymentType === "partial" ? "Partial Sale" : "Credit Sale";
+      return { date: i.date, type: typeLabel, description: `${i.invoiceNumber}${i.paymentType === "partial" ? ` (Cash: Rs.${paidAmt.toLocaleString()})` : ""}`, debit: unpaid, credit: 0 };
+    }),
     ...filtPayments.map((p) => ({ date: p.date, type: "Payment", description: p.notes || "Payment received", debit: 0, credit: p.amount })),
     ...filtReturns.map((r) => ({ date: r.date, type: "Return", description: `Return (${r.items.length} items)`, debit: 0, credit: r.totalCredit })),
   ].sort((a, b) => a.date.localeCompare(b.date));
