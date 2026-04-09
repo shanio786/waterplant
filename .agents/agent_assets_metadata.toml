@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "5c8nYOGH1YaOD4uZB51n_"
+uri = "file://artifacts/water-plant/dist-electron/WaterPlantManager-Portable.zip"
+type = "unspecified"
+title = "Water Plant Manager - Portable (Windows)"

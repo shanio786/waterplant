@@ -1,0 +1,69 @@
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> git pull
+remote: Enumerating objects: 76, done.
+remote: Counting objects: 100% (76/76), done.
+remote: Compressing objects: 100% (21/21), done.
+remote: Total 50 (delta 29), reused 47 (delta 26), pack-reused 0 (from 0)
+Unpacking objects: 100% (50/50), 291.18 KiB | 643.00 KiB/s, done.
+From https://github.com/shanio786/waterplant
+   0fbe06e..0c5ea2b  main       -> origin/main
+Updating 0fbe06e..0c5ea2b
+Fast-forward
+ .../water-plant/dist/assets/index-D0CuMxU7.css     |   1 -
+ .../water-plant/dist/assets/index-D9_Y5zFQ.js      |  55 +++++++
+ .../water-plant/dist/assets/index-DqQiCgjh.css     |   1 +
+ .../water-plant/dist/assets/index-UY0R8KWJ.js      |  55 -------
+ artifacts/water-plant/dist/index.html              |   4 +-
+ .../dist/public/assets/index-Bqw7qGuH.js           |  55 +++++++
+ .../dist/public/assets/index-DEdxerOM.css          |   1 +
+ artifacts/water-plant/dist/public/favicon.svg      |   3 +
+ artifacts/water-plant/dist/public/icon.png         | Bin 0 -> 33967 bytes
+ artifacts/water-plant/dist/public/index.html       |  17 ++
+ artifacts/water-plant/dist/public/opengraph.jpg    | Bin 0 -> 21789 bytes
+ .../src/components/SearchableSelect.tsx            | 125 +++++++++++++++
+ artifacts/water-plant/src/lib/calculations.ts      |  86 +++++++----
+ artifacts/water-plant/src/lib/db.ts                | 143 ++++++-----------
+ artifacts/water-plant/src/lib/types.ts             |   4 +-
+ .../src/pages/invoices/InvoiceHistory.tsx          |  77 ++++++---
+ .../water-plant/src/pages/invoices/InvoiceView.tsx |  82 ++++++++--
+ .../water-plant/src/pages/invoices/NewInvoice.tsx  | 172 +++++++++++++--------
+ .../src/pages/payments/ReceivePayment.tsx          |  21 +--
+ .../water-plant/src/pages/products/Products.tsx    |  28 +++-
+ .../water-plant/src/pages/reports/Reports.tsx      |  34 +++-
+ .../water-plant/src/pages/returns/CanReturn.tsx    |  41 +++--
+ ...top-waterplant-waterplant-git_1775730079975.txt |  42 +++++
+ 23 files changed, 717 insertions(+), 330 deletions(-)
+ delete mode 100644 artifacts/water-plant/dist/assets/index-D0CuMxU7.css
+ create mode 100644 artifacts/water-plant/dist/assets/index-D9_Y5zFQ.js
+ create mode 100644 artifacts/water-plant/dist/assets/index-DqQiCgjh.css
+ delete mode 100644 artifacts/water-plant/dist/assets/index-UY0R8KWJ.js
+ create mode 100644 artifacts/water-plant/dist/public/assets/index-Bqw7qGuH.js
+ create mode 100644 artifacts/water-plant/dist/public/assets/index-DEdxerOM.css
+ create mode 100644 artifacts/water-plant/dist/public/favicon.svg
+ create mode 100644 artifacts/water-plant/dist/public/icon.png
+ create mode 100644 artifacts/water-plant/dist/public/index.html
+ create mode 100644 artifacts/water-plant/dist/public/opengraph.jpg
+ create mode 100644 artifacts/water-plant/src/components/SearchableSelect.tsx
+ create mode 100644 attached_assets/Pasted-nt-PS-C-Users-Mehryam-Desktop-waterplant-waterplant-git_1775730079975.txt
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> cd artifacts\water-plant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> pnpm run electron:package:win
+
+> @workspace/water-plant@0.0.0 electron:package:win C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> electron-builder --win --config electron-builder.yml
+
+  • electron-builder  version=26.8.1 os=10.0.26100
+  • loaded configuration  file=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\electron-builder.yml
+  • description is missed in the package.json  appPackageFile=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\package.json
+  • author is missed in the package.json  appPackageFile=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\package.json
+  • writing effective config  file=dist-electron\builder-effective-config.yaml
+  • packageManager not detected by file, falling back to environment detection  resolvedPackageManager=pnpm detected=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+  • executing @electron/rebuild  electronVersion=41.1.1 arch=x64 buildFromSource=false workspaceRoot=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=41.1.1 appOutDir=dist-electron\win-unpacked
+  • searching for node modules  pm=pnpm searchDir=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+  • updating asar integrity executable resource  executablePath=dist-electron\win-unpacked\Water Plant Manager.exe
+  • signing with signtool.exe  path=dist-electron\win-unpacked\Water Plant Manager.exe
+  • building        target=portable file=dist-electron\Water Plant Manager.exe archs=x64
+  • signing with signtool.exe  path=dist-electron\win-unpacked\resources\elevate.exe
+  • signing with signtool.exe  path=dist-electron\Water Plant Manager.exe
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant>
