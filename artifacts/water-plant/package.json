@@ -86,7 +86,9 @@
     "dexie-react-hooks": "^4.4.0"
   },
   "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "*",
     "@rollup/rollup-win32-x64-msvc": "*",
-    "@rollup/rollup-linux-x64-gnu": "*"
+    "lightningcss-linux-x64-gnu": "^1.31.1",
+    "lightningcss-win32-x64-msvc": "^1.32.0"
   }
 }

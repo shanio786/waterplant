@@ -1,0 +1,43 @@
+artifacts/water-plant
+└─┬ electron-builder 26.8.1
+  ├─┬ dmg-builder 26.8.1
+  │ └─┬ app-builder-lib 26.8.1
+  │   └── ✕ missing peer electron-builder-squirrel-windows@26.8.1
+  └─┬ app-builder-lib 26.8.1
+    └── ✕ missing peer electron-builder-squirrel-windows@26.8.1
+Peer dependencies that should be installed:
+  electron-builder-squirrel-windows@26.8.1
+
+devDependencies:
++ prettier 3.8.1
++ typescript 5.9.3 (6.0.2 is available)
+
+Done in 1m 14.9s using pnpm v10.33.0
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> cd artifacts\water-plant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> pnpm run electron:build:win
+
+> @workspace/water-plant@0.0.0 electron:build:win C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> cross-env ELECTRON_BUILD=true pnpm run build && electron-builder --win --config electron-builder.yml
+
+
+> @workspace/water-plant@0.0.0 build C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> vite build --config vite.config.ts
+
+failed to load config from C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\vite.config.ts
+error during build:
+Error: Cannot find module '../lightningcss.win32-x64-msvc.node'
+Require stack:
+- C:\Users\Mehryam\Desktop\waterplant\waterplant\node_modules\.pnpm\lightningcss@1.32.0\node_modules\lightningcss\node\index.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+    at Module._load (node:internal/modules/cjs/loader:1043:27)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (C:\Users\Mehryam\Desktop\waterplant\waterplant\node_modules\.pnpm\lightningcss@1.32.0\node_modules\lightningcss\node\index.js:20:12)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at cjsLoader (node:internal/modules/esm/translators:298:15)
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant>
