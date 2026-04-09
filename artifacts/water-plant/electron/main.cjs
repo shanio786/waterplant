@@ -7,6 +7,21 @@ const crypto = require("crypto");
 
 const isDev = process.env.NODE_ENV === "development";
 
+// ─── Portable Data Folder (next to EXE) ──────────────────────────────────────
+// In production, store all data in a "WaterPlantData" folder beside the EXE
+// so the user can place the app on any drive (D:, E:, USB, etc.)
+if (!isDev) {
+  try {
+    const exeDir = path.dirname(app.getPath("exe"));
+    const dataDir = path.join(exeDir, "WaterPlantData");
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    app.setPath("userData", dataDir);
+  } catch (e) {
+    // fall back to default userData if path cannot be set
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── Secret Key (change this to your own secret before distributing) ──────────
 const SECRET_KEY = "DEVORIA-TECH-WPM-2026-SECRET-XK9";
 // ─────────────────────────────────────────────────────────────────────────────

@@ -13,24 +13,14 @@ files:
 
 win:
   target:
-    - target: nsis
+    - target: portable
       arch:
         - x64
   icon: public/icon.png
   requestedExecutionLevel: asInvoker
 
-nsis:
-  oneClick: true
-  perMachine: false
-  allowElevation: true
-  createDesktopShortcut: true
-  createStartMenuShortcut: true
-  shortcutName: Water Plant Manager
-  installerHeaderIcon: public/icon.png
-  deleteAppDataOnUninstall: false
-  runAfterFinish: true
-  installerLanguages:
-    - en_US
+portable:
+  artifactName: "Water Plant Manager.exe"
 
 mac:
   target: dmg
