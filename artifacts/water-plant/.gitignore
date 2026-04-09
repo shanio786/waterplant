@@ -1,0 +1,4 @@
+# Allow dist folder (pre-built on Replit for Windows packaging)
+!dist
+!dist/**
+dist-electron

@@ -11,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "electron:dev": "cross-env NODE_ENV=development electron electron/main.cjs",
     "electron:build": "cross-env ELECTRON_BUILD=true pnpm run build && electron-builder --config electron-builder.yml",
-    "electron:build:win": "cross-env ELECTRON_BUILD=true pnpm run build && electron-builder --win --config electron-builder.yml"
+    "electron:build:win": "cross-env ELECTRON_BUILD=true pnpm run build && electron-builder --win --config electron-builder.yml",
+    "electron:package:win": "electron-builder --win --config electron-builder.yml"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
