@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
 import { getCustomerBalance } from "@/lib/calculations";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { DollarSign } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
@@ -92,19 +92,14 @@ export default function ReceivePayment() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <Label>Customer</Label>
-              <Select
+              <SearchableSelect
+                options={(customers || []).map((c) => ({ value: String(c.id), label: c.name, sub: c.phone }))}
                 value={String(form.watch("customerId") || "")}
-                onValueChange={(v) => form.setValue("customerId", Number(v))}
-              >
-                <SelectTrigger data-testid="select-customer">
-                  <SelectValue placeholder="Select customer..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers?.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>{c.name} — {c.phone}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(v) => form.setValue("customerId", Number(v))}
+                placeholder="Select customer..."
+                searchPlaceholder="Search by name or phone..."
+                data-testid="select-customer"
+              />
               {form.formState.errors.customerId && <p className="text-xs text-destructive">{form.formState.errors.customerId.message}</p>}
               {selectedBalance !== null && (
                 <p className={`text-xs font-medium ${selectedBalance > 0 ? "text-destructive" : "text-green-600"}`}>

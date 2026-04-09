@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { db, generateInvoiceNumber } from "@/lib/db";
 import type { DiscountType } from "@/lib/types";
 import { calculateInvoiceAmounts } from "@/lib/calculations";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Trash2, FileText } from "lucide-react";
 
 const itemSchema = z.object({
@@ -32,7 +32,8 @@ const schema = z.object({
   discountValue: z.coerce.number().min(0),
   returnAdjustment: z.coerce.number().min(0),
   returnNote: z.string().optional(),
-  paymentType: z.enum(["cash", "credit"]),
+  paymentType: z.enum(["cash", "credit", "partial"]),
+  paidAmount: z.coerce.number().min(0),
   notes: z.string().optional(),
 });
 
@@ -52,19 +53,18 @@ export default function NewInvoice() {
   const customers = useLiveQuery(() => db.customers.orderBy("name").toArray(), []);
   const products = useLiveQuery(() => db.products.filter((p) => p.isActive).toArray(), []);
 
-  const defaultProductId = 0;
-
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       customerId: preselectedCustomer ? Number(preselectedCustomer) : 0,
       date: new Date().toISOString().slice(0, 10),
-      items: [{ productId: defaultProductId, quantity: 1, rate: 0, costPrice: 0 }],
+      items: [{ productId: 0, quantity: 1, rate: 0, costPrice: 0 }],
       discountType: "flat",
       discountValue: 0,
       returnAdjustment: 0,
       returnNote: "",
       paymentType: "cash",
+      paidAmount: 0,
       notes: "",
     },
   });
@@ -75,6 +75,8 @@ export default function NewInvoice() {
   const watchedDiscount = form.watch("discountValue");
   const watchedDiscountType = form.watch("discountType");
   const watchedReturn = form.watch("returnAdjustment");
+  const watchedPaymentType = form.watch("paymentType");
+  const watchedPaid = form.watch("paidAmount");
 
   const { subtotal, discountAmount, netAmount } = calculateInvoiceAmounts(
     watchedItems.map((i) => ({ quantity: i.quantity || 0, rate: i.rate || 0 })),
@@ -82,6 +84,18 @@ export default function NewInvoice() {
     watchedDiscount || 0,
     watchedReturn || 0
   );
+
+  // Auto-set paidAmount when paymentType changes
+  useEffect(() => {
+    if (watchedPaymentType === "cash") {
+      form.setValue("paidAmount", netAmount);
+    } else if (watchedPaymentType === "credit") {
+      form.setValue("paidAmount", 0);
+    }
+    // partial: user sets manually
+  }, [watchedPaymentType, netAmount]);
+
+  const creditAmount = netAmount - (watchedPaid || 0);
 
   function handleProductChange(index: number, productId: number) {
     form.setValue(`items.${index}.productId`, productId);
@@ -101,6 +115,13 @@ export default function NewInvoice() {
       data.discountValue,
       data.returnAdjustment
     );
+
+    const paidAmount =
+      data.paymentType === "cash"
+        ? netAmount
+        : data.paymentType === "credit"
+        ? 0
+        : Math.min(data.paidAmount, netAmount);
 
     const invoiceId = await db.invoices.add({
       invoiceNumber: invNum,
@@ -125,7 +146,8 @@ export default function NewInvoice() {
       returnNote: data.returnNote || "",
       subtotal,
       netAmount,
-      paymentType: data.paymentType,
+      paidAmount,
+      paymentType: data.paymentType as "cash" | "credit" | "partial",
       notes: data.notes,
       createdAt: new Date().toISOString(),
     });
@@ -134,7 +156,17 @@ export default function NewInvoice() {
     setLocation(`/invoices/${invoiceId}`);
   }
 
-  const productOptions = (products || []).filter((p) => p.isActive);
+  const customerOptions = (customers || []).map((c) => ({
+    value: String(c.id),
+    label: c.name,
+    sub: c.phone,
+  }));
+
+  const productOptions = (products || []).map((p) => ({
+    value: String(p.id),
+    label: p.name,
+    sub: `${p.unit} — ${formatPKR(p.sellingPrice)}`,
+  }));
 
   return (
     <div className="max-w-3xl space-y-6" data-testid="page-new-invoice">
@@ -148,21 +180,14 @@ export default function NewInvoice() {
           <CardContent className="pt-4 grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Customer</Label>
-              <Select
+              <SearchableSelect
+                options={customerOptions}
                 value={String(form.watch("customerId") || "")}
-                onValueChange={(v) => form.setValue("customerId", Number(v))}
-              >
-                <SelectTrigger data-testid="select-customer">
-                  <SelectValue placeholder="Select customer..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers?.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name} — {c.phone}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(v) => form.setValue("customerId", Number(v))}
+                placeholder="Select customer..."
+                searchPlaceholder="Search by name or phone..."
+                data-testid="select-customer"
+              />
               {form.formState.errors.customerId && (
                 <p className="text-xs text-destructive">{form.formState.errors.customerId.message}</p>
               )}
@@ -194,26 +219,18 @@ export default function NewInvoice() {
             {fields.map((field, index) => {
               const qty = watchedItems[index]?.quantity || 0;
               const rate = watchedItems[index]?.rate || 0;
-              const cost = watchedItems[index]?.costPrice || 0;
               return (
                 <div key={field.id} className="grid grid-cols-12 gap-2 items-end" data-testid={`item-row-${index}`}>
-                  <div className="col-span-4">
+                  <div className="col-span-5">
                     {index === 0 && <Label className="text-xs mb-1 block">Product</Label>}
-                    <Select
+                    <SearchableSelect
+                      options={productOptions}
                       value={String(form.watch(`items.${index}.productId`) || "")}
-                      onValueChange={(v) => handleProductChange(index, Number(v))}
-                    >
-                      <SelectTrigger className="h-9 text-sm" data-testid={`select-product-${index}`}>
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {productOptions.map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.name} ({p.unit})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(v) => handleProductChange(index, Number(v))}
+                      placeholder="Select product..."
+                      searchPlaceholder="Search product..."
+                      data-testid={`select-product-${index}`}
+                    />
                   </div>
                   <div className="col-span-2">
                     {index === 0 && <Label className="text-xs mb-1 block">Qty</Label>}
@@ -231,17 +248,11 @@ export default function NewInvoice() {
                       {...form.register(`items.${index}.rate`)}
                     />
                   </div>
-                  <div className="col-span-2">
-                    {index === 0 && <Label className="text-xs mb-1 block">Cost</Label>}
-                    <Input
-                      type="number" min={0} step="0.01" className="h-9 text-sm"
-                      data-testid={`input-cost-${index}`}
-                      {...form.register(`items.${index}.costPrice`)}
-                    />
-                  </div>
-                  <div className="col-span-1 text-xs text-right text-muted-foreground pt-1">
+                  <div className="col-span-2 text-xs text-right text-muted-foreground pt-1">
                     {index === 0 && <div className="text-xs mb-1 opacity-0">-</div>}
-                    {formatPKR(qty * rate)}
+                    <div className="h-9 flex items-center justify-end font-medium text-sm">
+                      {formatPKR(qty * rate)}
+                    </div>
                   </div>
                   <div className="col-span-1 flex justify-end">
                     {index === 0 && <div className="text-xs mb-1 opacity-0">-</div>}
@@ -297,7 +308,7 @@ export default function NewInvoice() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Return Note</Label>
-                <Input className="h-9 text-sm" placeholder="e.g. 5 bottles wapas" data-testid="input-return-note" {...form.register("returnNote")} />
+                <Input className="h-9 text-sm" placeholder="e.g. 5 bottles returned" data-testid="input-return-note" {...form.register("returnNote")} />
               </div>
             </div>
           </CardContent>
@@ -334,26 +345,53 @@ export default function NewInvoice() {
         </Card>
 
         <Card>
-          <CardContent className="pt-4 grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Payment Type</Label>
-              <Select
-                value={form.watch("paymentType")}
-                onValueChange={(v) => form.setValue("paymentType", v as "cash" | "credit")}
-              >
-                <SelectTrigger data-testid="select-payment-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="credit">Credit (Udhaar)</SelectItem>
-                </SelectContent>
-              </Select>
+          <CardContent className="pt-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Payment Type</Label>
+                <Select
+                  value={form.watch("paymentType")}
+                  onValueChange={(v) => form.setValue("paymentType", v as "cash" | "credit" | "partial")}
+                >
+                  <SelectTrigger data-testid="select-payment-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash (Full)</SelectItem>
+                    <SelectItem value="credit">Credit / Udhaar (Full)</SelectItem>
+                    <SelectItem value="partial">Partial (Cash + Udhaar)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notes (optional)</Label>
+                <Input placeholder="Any notes..." data-testid="input-notes" {...form.register("notes")} />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Notes (optional)</Label>
-              <Input placeholder="Any notes..." data-testid="input-notes" {...form.register("notes")} />
-            </div>
+
+            {watchedPaymentType === "partial" && (
+              <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Cash Received (Rs.)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={netAmount}
+                    step="0.01"
+                    className="h-9"
+                    placeholder="0"
+                    data-testid="input-paid-amount"
+                    {...form.register("paidAmount")}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm text-orange-600">Remaining Credit (Udhaar)</Label>
+                  <div className="h-9 flex items-center px-3 border rounded-md bg-orange-50 text-orange-700 font-bold text-sm">
+                    {formatPKR(Math.max(0, creditAmount))}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

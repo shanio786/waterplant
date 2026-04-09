@@ -26,6 +26,7 @@ const schema = z.object({
   labelsPerUnit: z.coerce.number().int().min(0),
   capsPerUnit: z.coerce.number().int().min(0),
   category: z.enum(["water_bottle", "beverage", "other"]),
+  requiresFilling: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -54,7 +55,7 @@ export default function Products() {
     resolver: zodResolver(schema),
     defaultValues: {
       name: "", unit: "", sellingPrice: 0, costPrice: 0,
-      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle",
+      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false,
     },
   });
 
@@ -62,7 +63,7 @@ export default function Products() {
     setEditProduct(null);
     form.reset({
       name: "", unit: "", sellingPrice: 0, costPrice: 0,
-      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle",
+      labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false,
     });
     setDialogOpen(true);
   }
@@ -73,6 +74,7 @@ export default function Products() {
       name: p.name, unit: p.unit, sellingPrice: p.sellingPrice,
       costPrice: p.costPrice, labelsPerUnit: p.labelsPerUnit,
       capsPerUnit: p.capsPerUnit, category: p.category,
+      requiresFilling: p.requiresFilling ?? false,
     });
     setDialogOpen(true);
   }
@@ -145,9 +147,14 @@ export default function Products() {
                           <Badge variant="secondary" className="text-xs shrink-0">Default</Badge>
                         )}
                       </div>
-                      <Badge className={`text-xs ${categoryColors[p.category]}`} variant="secondary">
-                        {PRODUCT_CATEGORIES.find((c) => c.value === p.category)?.label}
-                      </Badge>
+                      <div className="flex gap-1.5 flex-wrap">
+                        <Badge className={`text-xs ${categoryColors[p.category]}`} variant="secondary">
+                          {PRODUCT_CATEGORIES.find((c) => c.value === p.category)?.label}
+                        </Badge>
+                        <Badge variant="secondary" className={`text-xs ${p.requiresFilling ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500"}`}>
+                          {p.requiresFilling ? "Filling Required" : "No Filling"}
+                        </Badge>
+                      </div>
                       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span>Unit: <strong className="text-foreground">{p.unit}</strong></span>
                         <span>Sell: <strong className="text-green-600">{formatPKR(p.sellingPrice)}</strong></span>
@@ -229,6 +236,17 @@ export default function Products() {
                 <Label>Caps per Unit</Label>
                 <Input type="number" min={0} step="1" {...form.register("capsPerUnit")} data-testid="input-caps" />
               </div>
+            </div>
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div>
+                <p className="text-sm font-medium">Requires Filling</p>
+                <p className="text-xs text-muted-foreground">Turn OFF for external products (juice, etc.) that don't go through filling process</p>
+              </div>
+              <Switch
+                checked={form.watch("requiresFilling")}
+                onCheckedChange={(v) => form.setValue("requiresFilling", v)}
+                data-testid="switch-requires-filling"
+              />
             </div>
             <div className="flex gap-2 pt-1">
               <Button type="submit" className="flex-1" data-testid="button-save-product">

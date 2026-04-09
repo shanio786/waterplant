@@ -12,8 +12,9 @@ export async function getStockSummary(): Promise<StockSummary[]> {
     db.products.toArray(),
   ]);
 
+  // Only include water bottle products that require filling for stock tracking
   const productMap = Object.fromEntries(
-    products.filter((p) => p.bottleSize).map((p) => [p.bottleSize!, p])
+    products.filter((p) => p.bottleSize && p.requiresFilling !== false).map((p) => [p.bottleSize!, p])
   );
 
   return ALL_SIZES.map((bottleSize) => {
@@ -27,9 +28,14 @@ export async function getStockSummary(): Promise<StockSummary[]> {
 
     const emptyRemaining = emptyReceived - filled;
 
+    // Only count invoice items for products that require filling
+    const fillingProductIds = new Set(
+      products.filter((p) => p.bottleSize === bottleSize && p.requiresFilling !== false).map((p) => p.id)
+    );
+
     const fullSold = invoices
       .flatMap((inv) => inv.items)
-      .filter((item) => item.bottleSize === bottleSize)
+      .filter((item) => item.bottleSize === bottleSize && (!item.productId || fillingProductIds.has(item.productId)))
       .reduce((sum, item) => sum + item.quantity, 0);
 
     const fullReturned = productReturns
@@ -49,11 +55,12 @@ export async function getStockSummary(): Promise<StockSummary[]> {
       fullReturned,
       fullRemaining: Math.max(0, fullRemaining),
       labelsPerUnit: prod?.labelsPerUnit ?? 1,
-      capsPerUnit: prod?.capsPerUnit ?? 1,
+      capsPerUnit: prod?.capsPerUnit ?? 0,
     };
   });
 }
 
+// Returns outstanding balance for a customer (credit not yet paid)
 export async function getCustomerBalance(customerId: number): Promise<number> {
   const [invoices, payments, productReturns] = await Promise.all([
     db.invoices.where('customerId').equals(customerId).toArray(),
@@ -61,13 +68,16 @@ export async function getCustomerBalance(customerId: number): Promise<number> {
     db.productReturns.where('customerId').equals(customerId).toArray(),
   ]);
 
-  const creditSales = invoices
-    .filter((inv) => inv.paymentType === 'credit')
-    .reduce((sum, inv) => sum + inv.netAmount, 0);
+  // Credit = netAmount - paidAmount (paidAmount=0 for full credit, netAmount for cash, custom for partial)
+  const totalUnpaid = invoices.reduce((sum, inv) => {
+    const paid = inv.paidAmount ?? (inv.paymentType === 'cash' ? inv.netAmount : 0);
+    return sum + (inv.netAmount - paid);
+  }, 0);
+
   const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
   const totalReturns = productReturns.reduce((sum, r) => sum + r.totalCredit, 0);
 
-  return Math.max(0, creditSales - totalPayments - totalReturns);
+  return Math.max(0, totalUnpaid - totalPayments - totalReturns);
 }
 
 export async function getCustomer19LBalance(customerId: number): Promise<number> {
@@ -97,27 +107,22 @@ export async function getCustomerLedger(customerId: number): Promise<CustomerLed
   const entries: CustomerLedgerEntry[] = [];
 
   invoices.forEach((inv) => {
-    if (inv.paymentType === 'credit') {
-      entries.push({
-        date: inv.date,
-        type: 'invoice',
-        description: `Invoice #${inv.invoiceNumber} (Credit)`,
-        debit: inv.netAmount,
-        credit: 0,
-        balance: 0,
-        refId: inv.id,
-      });
-    } else {
-      entries.push({
-        date: inv.date,
-        type: 'invoice',
-        description: `Invoice #${inv.invoiceNumber} (Cash)`,
-        debit: 0,
-        credit: 0,
-        balance: 0,
-        refId: inv.id,
-      });
-    }
+    const paid = inv.paidAmount ?? (inv.paymentType === 'cash' ? inv.netAmount : 0);
+    const credit = inv.netAmount - paid;
+
+    let typeLabel = 'Cash';
+    if (inv.paymentType === 'credit') typeLabel = 'Credit';
+    else if (inv.paymentType === 'partial') typeLabel = `Partial — Cash Rs.${paid.toLocaleString()}`;
+
+    entries.push({
+      date: inv.date,
+      type: 'invoice',
+      description: `Invoice #${inv.invoiceNumber} (${typeLabel})`,
+      debit: credit,  // only unpaid portion is debit
+      credit: 0,
+      balance: 0,
+      refId: inv.id,
+    });
   });
 
   payments.forEach((p) => {
@@ -182,17 +187,30 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     ]);
 
   const todaySales = todayInvoices.reduce((sum, inv) => sum + inv.netAmount, 0);
-  const todayCash = todayInvoices.filter((inv) => inv.paymentType === 'cash').reduce((sum, inv) => sum + inv.netAmount, 0);
-  const todayCredit = todayInvoices.filter((inv) => inv.paymentType === 'credit').reduce((sum, inv) => sum + inv.netAmount, 0);
+
+  // Cash = fully paid invoices + partial paid amounts
+  const todayCash = todayInvoices.reduce((sum, inv) => {
+    const paid = inv.paidAmount ?? (inv.paymentType === 'cash' ? inv.netAmount : 0);
+    return sum + paid;
+  }, 0);
+
+  // Credit = unpaid portions
+  const todayCredit = todayInvoices.reduce((sum, inv) => {
+    const paid = inv.paidAmount ?? (inv.paymentType === 'cash' ? inv.netAmount : 0);
+    return sum + (inv.netAmount - paid);
+  }, 0);
+
   const todayExpensesTotal = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
   const todayPaymentsReceived = todayPayments.reduce((sum, p) => sum + p.amount, 0);
 
-  const totalCreditSales = allInvoices
-    .filter((inv) => inv.paymentType === 'credit')
-    .reduce((sum, inv) => sum + inv.netAmount, 0);
+  // Total receivable = all unpaid amounts - payments received - return credits
+  const totalUnpaid = allInvoices.reduce((sum, inv) => {
+    const paid = inv.paidAmount ?? (inv.paymentType === 'cash' ? inv.netAmount : 0);
+    return sum + (inv.netAmount - paid);
+  }, 0);
   const totalPaymentsReceived = allPayments.reduce((sum, p) => sum + p.amount, 0);
   const totalReturns = allReturns.reduce((sum, r) => sum + r.totalCredit, 0);
-  const totalReceivable = Math.max(0, totalCreditSales - totalPaymentsReceived - totalReturns);
+  const totalReceivable = Math.max(0, totalUnpaid - totalPaymentsReceived - totalReturns);
 
   const stockAlerts = stock.filter((s) => s.fullRemaining < 10 || s.emptyRemaining < 10);
 

@@ -7,7 +7,7 @@ export const BOTTLE_LABELS: Record<BottleSize, string> = {
   '19L': '19 Liter (Can)',
 };
 
-export type PaymentType = 'cash' | 'credit';
+export type PaymentType = 'cash' | 'credit' | 'partial';
 export type DiscountType = 'flat' | 'percent';
 export type UserRole = 'dev' | 'admin' | 'store_manager';
 export type ProductCategory = 'water_bottle' | 'beverage' | 'other';
@@ -46,6 +46,7 @@ export interface Product {
   capsPerUnit: number;
   category: ProductCategory;
   bottleSize?: BottleSize;
+  requiresFilling: boolean;
   isDefault: boolean;
   isActive: boolean;
   createdAt: string;
@@ -119,6 +120,7 @@ export interface Invoice {
   returnNote: string;
   subtotal: number;
   netAmount: number;
+  paidAmount: number;
   paymentType: PaymentType;
   notes?: string;
   createdAt: string;
