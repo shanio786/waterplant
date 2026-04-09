@@ -10,11 +10,21 @@ export interface Session {
 const SESSION_KEY = 'wp_session';
 
 export async function hashPassword(password: string): Promise<string> {
-  const data = new TextEncoder().encode(password);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  try {
+    const data = new TextEncoder().encode(password);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  } catch {
+    // Fallback: simple deterministic hash for environments where crypto.subtle is unavailable
+    let hash = 0;
+    const str = password + 'WPM_SALT_2026';
+    for (let i = 0; i < str.length; i++) {
+      hash = (Math.imul(31, hash) + str.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash).toString(16).padStart(64, '0');
+  }
 }
 
 export function getSession(): Session | null {

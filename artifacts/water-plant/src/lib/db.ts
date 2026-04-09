@@ -14,13 +14,8 @@ import type {
   ConsumableStock,
 } from './types';
 
-async function hashPwd(password: string): Promise<string> {
-  const data = new TextEncoder().encode(password);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
+// Pre-computed SHA-256('dev123') — used for seeding to avoid crypto.subtle dependency at init time
+const DEV_PASSWORD_HASH = '87274af01876341455b32d805946f272871bb42effa6604dccf28bb027afa82b';
 
 export class WaterPlantDB extends Dexie {
   customers!: Table<Customer, number>;
@@ -127,10 +122,9 @@ export class WaterPlantDB extends Dexie {
 
         const userCount = await tx.table('users').count();
         if (userCount === 0) {
-          const hash = await hashPwd('dev123');
           await tx.table('users').add({
             username: 'dev',
-            passwordHash: hash,
+            passwordHash: DEV_PASSWORD_HASH,
             role: 'dev',
             name: 'Developer',
             createdAt: now,
