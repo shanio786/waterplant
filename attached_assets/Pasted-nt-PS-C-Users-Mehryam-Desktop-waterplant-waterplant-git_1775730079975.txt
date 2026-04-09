@@ -1,0 +1,42 @@
+nt
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> git pull
+remote: Enumerating objects: 35, done.
+remote: Counting objects: 100% (35/35), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 21 (delta 14), reused 21 (delta 14), pack-reused 0 (from 0)
+Unpacking objects: 100% (21/21), 270.05 KiB | 947.00 KiB/s, done.
+From https://github.com/shanio786/waterplant
+   d9d18ca..0fbe06e  main       -> origin/main
+Updating d9d18ca..0fbe06e
+Fast-forward
+ .../{index-BVAd2i9f.js => index-UY0R8KWJ.js}       |  32 ++++++++++-----------
+ artifacts/water-plant/dist/index.html              |   2 +-
+ artifacts/water-plant/electron-builder.yml         |  16 ++---------
+ artifacts/water-plant/electron/main.cjs            |  15 ++++++++++
+ artifacts/water-plant/src/App.tsx                  |  17 ++++++++---
+ artifacts/water-plant/src/pages/Dashboard.tsx      |  10 ++++++-
+ .../Screenshot_2026-04-09_150927_1775729373879.png | Bin 0 -> 62006 bytes
+ 7 files changed, 57 insertions(+), 35 deletions(-)
+ rename artifacts/water-plant/dist/assets/{index-BVAd2i9f.js => index-UY0R8KWJ.js} (51%)
+ create mode 100644 attached_assets/Screenshot_2026-04-09_150927_1775729373879.png
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> cd artifacts\water-plant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> pnpm run electron:package:win
+
+> @workspace/water-plant@0.0.0 electron:package:win C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> electron-builder --win --config electron-builder.yml
+
+  • electron-builder  version=26.8.1 os=10.0.26100
+  • loaded configuration  file=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\electron-builder.yml
+  • description is missed in the package.json  appPackageFile=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\package.json
+  • author is missed in the package.json  appPackageFile=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\package.json
+  • writing effective config  file=dist-electron\builder-effective-config.yaml
+  • packageManager not detected by file, falling back to environment detection  resolvedPackageManager=pnpm detected=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+  • executing @electron/rebuild  electronVersion=41.1.1 arch=x64 buildFromSource=false workspaceRoot=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=41.1.1 appOutDir=dist-electron\win-unpacked
+  • searching for node modules  pm=pnpm searchDir=C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+  • updating asar integrity executable resource  executablePath=dist-electron\win-unpacked\Water Plant Manager.exe
+  • signing with signtool.exe  path=dist-electron\win-unpacked\Water Plant Manager.exe
+  • building        target=portable file=dist-electron\Water Plant Manager.exe archs=x64
+  • signing with signtool.exe  path=dist-electron\win-unpacked\resources\elevate.exe
