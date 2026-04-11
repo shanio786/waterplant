@@ -132,6 +132,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.cjs"),
+      webSecurity: isDev ? true : false,
     },
     icon: path.join(__dirname, "../public/icon.png"),
     autoHideMenuBar: true,
@@ -142,7 +143,7 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     const indexPath = path.join(__dirname, "../dist/index.html");
-    mainWindow.loadURL(pathToFileURL(indexPath).toString());
+    mainWindow.loadFile(indexPath);
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
