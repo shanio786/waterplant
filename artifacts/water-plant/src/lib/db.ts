@@ -167,6 +167,23 @@ export class WaterPlantDB extends Dexie {
       productStockEntries: '++id, productId, date, createdAt',
     });
 
+    // Version 7: per-product empty stock and consumable stock tracking
+    this.version(7).stores({
+      customers: '++id, name, phone, createdAt',
+      emptyStockEntries: '++id, bottleSize, productId, date, createdAt',
+      fillingRecords: '++id, bottleSize, productId, date, createdAt',
+      invoices: '++id, invoiceNumber, customerId, date, paymentType, createdAt',
+      payments: '++id, customerId, date, createdAt',
+      productReturns: '++id, customerId, invoiceId, date, createdAt',
+      canReturns: '++id, customerId, date, createdAt',
+      expenses: '++id, category, date, createdAt',
+      products: '++id, name, category, isActive',
+      users: '++id, username, role',
+      businessSettings: '++id',
+      consumableStock: '++id, item, productId, bottleSize, date, createdAt',
+      productStockEntries: '++id, productId, date, createdAt',
+    });
+
     this.on('populate', async () => {
       const now = new Date().toISOString();
       const devHash = await hashPassword('dev123');

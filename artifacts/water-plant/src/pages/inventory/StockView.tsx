@@ -32,18 +32,32 @@ export default function StockView() {
   const productStockEntries = useLiveQuery(() => db.productStockEntries.toArray());
   const allInvoices = useLiveQuery(() => db.invoices.toArray());
 
+  const emptyStockEntries = useLiveQuery(() => db.emptyStockEntries.toArray());
+
   function getFillingProductStock(productId: number) {
-    // filled = fillingRecords with this productId (new) OR bottleSize match if no productId (old)
     const prod = (fillingProducts || []).find((p) => p.id === productId);
+    const size = prod?.bottleSize;
+
+    // Empty received: per-product entries + legacy (no productId, same bottleSize)
+    const emptyReceived = (emptyStockEntries || [])
+      .filter((e) => e.productId === productId)
+      .reduce((s, e) => s + e.quantity, 0);
+    const emptyLegacy = size ? (emptyStockEntries || [])
+      .filter((e) => !e.productId && e.bottleSize === size)
+      .reduce((s, e) => s + e.quantity, 0) : 0;
+
     const filled = (allFillingRecords || [])
       .filter((r) => r.productId === productId)
       .reduce((s, r) => s + r.quantity, 0);
+
+    const emptyRemaining = Math.max(0, emptyReceived + emptyLegacy - filled);
+
     const sold = (allInvoices || []).reduce((sum, inv) => {
       return sum + (inv.items || [])
         .filter((item) => item.productId === productId)
         .reduce((s, item) => s + item.quantity, 0);
     }, 0);
-    return { filled, sold, balance: Math.max(0, filled - sold), prod };
+    return { filled, sold, balance: Math.max(0, filled - sold), emptyRemaining, prod };
   }
 
   function getNonFillingStock(productId: number) {
@@ -163,20 +177,24 @@ export default function StockView() {
                 <tr className="bg-muted">
                   <th className="text-left py-2.5 px-3 text-xs font-semibold">Product</th>
                   <th className="text-left py-2.5 px-3 text-xs font-semibold">Bottle</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Khaali</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold">Filled</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold">Sold</th>
-                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Remaining</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Full Remaining</th>
                   <th className="text-center py-2.5 px-3 text-xs font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {fillingProducts.map((p) => {
-                  const { filled, sold, balance } = getFillingProductStock(p.id!);
+                  const { filled, sold, balance, emptyRemaining } = getFillingProductStock(p.id!);
                   return (
                     <tr key={p.id} className="border-b last:border-0">
                       <td className="py-2.5 px-3 font-medium">{p.name}</td>
                       <td className="py-2.5 px-3 text-muted-foreground text-xs">
                         {p.bottleSize ? BOTTLE_LABELS[p.bottleSize] : "—"}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-semibold ${emptyRemaining === 0 ? "text-red-600" : "text-blue-600"}`}>
+                        {emptyRemaining}
                       </td>
                       <td className="py-2.5 px-3 text-right">{filled}</td>
                       <td className="py-2.5 px-3 text-right">{sold}</td>
@@ -199,7 +217,7 @@ export default function StockView() {
             </table>
           </div>
           <p className="text-xs text-muted-foreground mt-1.5">
-            * Sirf naye filling records track hote hain per product (jab se FillingProcess mein product select kiya ho)
+            * Khaali = Empty bottles available per product | Full Remaining = filled - sold
           </p>
         </div>
       )}

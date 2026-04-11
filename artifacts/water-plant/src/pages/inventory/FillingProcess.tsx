@@ -54,38 +54,52 @@ export default function FillingProcess() {
   const selectedProduct = (products || []).find((p) => p.id === selectedProductId);
   const selectedSize = selectedProduct?.bottleSize as BottleSize | undefined;
 
-  function getAvailableEmpty(size: BottleSize) {
+  function getAvailableEmpty(productId: number, size: BottleSize) {
     if (!emptyEntries || !allFillingRecords) return 0;
-    const received = emptyEntries
-      .filter((e) => e.bottleSize === size)
+    // Per-product: entries with this productId
+    const perProductReceived = emptyEntries
+      .filter((e) => e.productId === productId)
       .reduce((s, e) => s + e.quantity, 0);
+    // Legacy: entries with no productId but same bottleSize
+    const legacyReceived = emptyEntries
+      .filter((e) => !e.productId && e.bottleSize === size)
+      .reduce((s, e) => s + e.quantity, 0);
+    const received = perProductReceived + legacyReceived;
+
     const alreadyFilled = allFillingRecords
-      .filter((r) => r.bottleSize === size)
+      .filter((r) => r.productId === productId)
       .reduce((s, r) => s + r.quantity, 0);
     return Math.max(0, received - alreadyFilled);
   }
 
-  function getConsumableBalance(size: BottleSize, item: "label" | "cap", perUnit: number): number {
+  function getConsumableBalance(productId: number, size: BottleSize, item: "label" | "cap", perUnit: number): number {
+    // Per-product entries
     const received = (consumableStock || [])
-      .filter((e) => e.item === item && e.bottleSize === size)
+      .filter((e) => e.item === item && e.productId === productId)
+      .reduce((s, e) => s + e.quantity, 0);
+    // Legacy: entries with no productId but same bottleSize
+    const legacyReceived = (consumableStock || [])
+      .filter((e) => e.item === item && !e.productId && e.bottleSize === size)
       .reduce((s, e) => s + e.quantity, 0);
     const used = (allFillingRecords || [])
-      .filter((r) => r.bottleSize === size)
+      .filter((r) => r.productId === productId)
       .reduce((s, r) => s + r.quantity * perUnit, 0);
-    return Math.max(0, received - used);
+    return Math.max(0, received + legacyReceived - used);
   }
 
   const labelsNeeded = selectedProduct ? selectedQty * (selectedProduct.labelsPerUnit ?? 0) : 0;
   const capsNeeded = selectedProduct ? selectedQty * (selectedProduct.capsPerUnit ?? 0) : 0;
-  const labelsLeft = selectedProduct && selectedSize
-    ? getConsumableBalance(selectedSize, "label", selectedProduct.labelsPerUnit ?? 0)
+  const labelsLeft = selectedProduct && selectedSize && selectedProductId
+    ? getConsumableBalance(selectedProductId, selectedSize, "label", selectedProduct.labelsPerUnit ?? 0)
     : 0;
-  const capsLeft = selectedProduct && selectedSize
-    ? getConsumableBalance(selectedSize, "cap", selectedProduct.capsPerUnit ?? 0)
+  const capsLeft = selectedProduct && selectedSize && selectedProductId
+    ? getConsumableBalance(selectedProductId, selectedSize, "cap", selectedProduct.capsPerUnit ?? 0)
     : 0;
   const labelShort = labelsNeeded > 0 && labelsLeft < labelsNeeded;
   const capShort = capsNeeded > 0 && capsLeft < capsNeeded;
-  const availableEmpty = selectedSize ? getAvailableEmpty(selectedSize) : 0;
+  const availableEmpty = selectedProduct && selectedSize && selectedProductId
+    ? getAvailableEmpty(selectedProductId, selectedSize)
+    : 0;
 
   function getProductName(productId?: number, bottleSize?: BottleSize) {
     if (productId) {

@@ -81,6 +81,7 @@ export interface Customer {
 
 export interface EmptyStockEntry {
   id?: number;
+  productId?: number;
   bottleSize: BottleSize;
   quantity: number;
   date: string;
@@ -215,6 +216,7 @@ export type ConsumableItem = 'label' | 'cap';
 
 export interface ConsumableStock {
   id?: number;
+  productId?: number;
   item: ConsumableItem;
   bottleSize: BottleSize;
   quantity: number;
