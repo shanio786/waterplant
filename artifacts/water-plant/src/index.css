@@ -2,6 +2,61 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+@media print {
+  aside,
+  nav,
+  [data-sidebar],
+  [class*="sidebar"],
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  main,
+  [class*="main-content"],
+  .print-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .border,
+  [class*="border"] {
+    border-color: #ccc !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 6px 8px !important;
+  }
+
+  thead tr {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .text-destructive { color: #dc2626 !important; }
+  .text-green-600 { color: #16a34a !important; }
+  .text-orange-600 { color: #ea580c !important; }
+
+  @page {
+    margin: 15mm;
+    size: A4;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

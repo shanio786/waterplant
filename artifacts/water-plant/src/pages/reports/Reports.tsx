@@ -204,7 +204,7 @@ function ProductSalesReport() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap no-print">
         <div className="space-y-1">
           <Label className="text-xs">From</Label>
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" data-testid="input-from-date" />
@@ -216,6 +216,7 @@ function ProductSalesReport() {
         <div className="text-sm font-semibold mt-5">
           {invoices?.length || 0} invoices
         </div>
+        <Button variant="outline" size="sm" className="mt-5" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
@@ -298,7 +299,7 @@ function ProfitLossReport() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap no-print">
         <div className="space-y-1">
           <Label className="text-xs">From</Label>
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-36" />
@@ -307,6 +308,7 @@ function ProfitLossReport() {
           <Label className="text-xs">To</Label>
           <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-36" />
         </div>
+        <Button variant="outline" size="sm" className="mt-5" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -399,6 +401,9 @@ function StockReport() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end no-print">
+        <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -452,7 +457,10 @@ function CustomerBalanceReport() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">{withBalance.length} customers with outstanding balance</p>
-        <p className="text-sm font-semibold text-destructive">Total: {formatPKR(totalReceivable)}</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm font-semibold text-destructive">Total: {formatPKR(totalReceivable)}</p>
+          <Button variant="outline" size="sm" className="no-print" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">

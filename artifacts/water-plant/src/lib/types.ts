@@ -49,6 +49,8 @@ export interface Product {
   requiresFilling: boolean;
   isDefault: boolean;
   isActive: boolean;
+  packSize?: number;
+  packSellingPrice?: number;
   createdAt: string;
 }
 
@@ -107,6 +109,9 @@ export interface InvoiceItem {
   rate: number;
   costPrice: number;
   amount: number;
+  packCount?: number;
+  packSize?: number;
+  packRate?: number;
 }
 
 export interface Invoice {

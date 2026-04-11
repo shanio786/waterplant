@@ -28,6 +28,8 @@ const schema = z.object({
   category: z.enum(["water_bottle", "beverage", "other"]),
   requiresFilling: z.boolean(),
   bottleSize: z.enum(["500ml", "1.5L", "5L", "19L"]).optional(),
+  packSize: z.coerce.number().int().min(0).optional(),
+  packSellingPrice: z.coerce.number().min(0).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -57,6 +59,7 @@ export default function Products() {
     defaultValues: {
       name: "", unit: "", sellingPrice: 0, costPrice: 0,
       labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false, bottleSize: undefined,
+      packSize: undefined, packSellingPrice: undefined,
     },
   });
 
@@ -65,6 +68,7 @@ export default function Products() {
     form.reset({
       name: "", unit: "", sellingPrice: 0, costPrice: 0,
       labelsPerUnit: 1, capsPerUnit: 1, category: "water_bottle", requiresFilling: false, bottleSize: undefined,
+      packSize: undefined, packSellingPrice: undefined,
     });
     setDialogOpen(true);
   }
@@ -77,6 +81,8 @@ export default function Products() {
       capsPerUnit: p.capsPerUnit, category: p.category,
       requiresFilling: p.requiresFilling ?? false,
       bottleSize: p.bottleSize as BottleSize | undefined,
+      packSize: p.packSize ?? undefined,
+      packSellingPrice: p.packSellingPrice ?? undefined,
     });
     setDialogOpen(true);
   }
@@ -171,6 +177,12 @@ export default function Products() {
                         <span>Labels: <strong className="text-foreground">{p.labelsPerUnit}/unit</strong></span>
                         <span>Margin: <strong className={profit >= 0 ? "text-green-600" : "text-destructive"}>{margin}%</strong></span>
                         <span>Caps: <strong className="text-foreground">{p.capsPerUnit}/unit</strong></span>
+                        {p.packSize && p.packSize > 0 && (
+                          <>
+                            <span>Pack Size: <strong className="text-purple-600">{p.packSize} pcs/pet</strong></span>
+                            {p.packSellingPrice && <span>Pet Price: <strong className="text-purple-600">{formatPKR(p.packSellingPrice)}</strong></span>}
+                          </>
+                        )}
                       </div>
                     </div>
                     {canEdit && (
@@ -284,6 +296,22 @@ export default function Products() {
                 </p>
               </div>
             )}
+            <div className="border rounded-lg p-3 bg-purple-50/50 space-y-2">
+              <p className="text-sm font-medium text-purple-700">Pet / Pack Setting (Optional)</p>
+              <p className="text-xs text-muted-foreground">Agar yeh product pet (shrink pack) mein bhi bechta hai toh set karo</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Bottles per Pet</Label>
+                  <Input type="number" min={0} step="1" placeholder="e.g. 12" {...form.register("packSize")} data-testid="input-pack-size" />
+                  <p className="text-xs text-muted-foreground">Ek pet mein kitni bottles hain</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Pet Selling Price (Rs.)</Label>
+                  <Input type="number" min={0} step="0.01" placeholder="e.g. 300" {...form.register("packSellingPrice")} data-testid="input-pack-price" />
+                  <p className="text-xs text-muted-foreground">Ek pet ki qeemat</p>
+                </div>
+              </div>
+            </div>
             <div className="flex gap-2 pt-1">
               <Button type="submit" className="flex-1" data-testid="button-save-product">
                 {editProduct ? "Update" : "Add Product"}

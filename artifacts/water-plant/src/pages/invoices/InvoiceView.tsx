@@ -84,9 +84,22 @@ function A4Invoice({
         <tbody>
           {invoice.items.map((item, i) => (
             <tr key={i} className="border-b border-gray-100">
-              <td className="py-2.5 px-3 text-sm">{getItemLabel(item)}</td>
-              <td className="py-2.5 px-3 text-sm text-center">{item.quantity}</td>
-              <td className="py-2.5 px-3 text-sm text-right">{formatPKR(item.rate)}</td>
+              <td className="py-2.5 px-3 text-sm">
+                {getItemLabel(item)}
+                {item.packCount && item.packCount > 0 ? (
+                  <span className="ml-1.5 text-xs text-purple-600 font-medium">(Pet sale)</span>
+                ) : null}
+              </td>
+              <td className="py-2.5 px-3 text-sm text-center">
+                {item.packCount && item.packCount > 0
+                  ? `${item.packCount} pet`
+                  : item.quantity}
+              </td>
+              <td className="py-2.5 px-3 text-sm text-right">
+                {item.packCount && item.packCount > 0
+                  ? `${formatPKR(item.packRate || 0)}/pet`
+                  : formatPKR(item.rate)}
+              </td>
               <td className="py-2.5 px-3 text-sm text-right font-medium">{formatPKR(item.amount)}</td>
             </tr>
           ))}

@@ -22,6 +22,10 @@ const itemSchema = z.object({
   quantity: z.coerce.number().int().positive("Min 1"),
   rate: z.coerce.number().min(0),
   costPrice: z.coerce.number().min(0),
+  unitType: z.enum(["single", "pack"]).default("single"),
+  packCount: z.coerce.number().min(0).default(0),
+  packRate: z.coerce.number().min(0).default(0),
+  packSize: z.coerce.number().min(0).default(0),
 });
 
 const schema = z.object({
@@ -58,7 +62,7 @@ export default function NewInvoice() {
     defaultValues: {
       customerId: preselectedCustomer ? Number(preselectedCustomer) : 0,
       date: new Date().toISOString().slice(0, 10),
-      items: [{ productId: 0, quantity: 1, rate: 0, costPrice: 0 }],
+      items: [{ productId: 0, quantity: 1, rate: 0, costPrice: 0, unitType: "single" as const, packCount: 0, packRate: 0, packSize: 0 }],
       discountType: "flat",
       discountValue: 0,
       returnAdjustment: 0,
@@ -79,7 +83,12 @@ export default function NewInvoice() {
   const watchedPaid = form.watch("paidAmount");
 
   const { subtotal, discountAmount, netAmount } = calculateInvoiceAmounts(
-    watchedItems.map((i) => ({ quantity: i.quantity || 0, rate: i.rate || 0 })),
+    watchedItems.map((i) => {
+      if (i.unitType === "pack" && (i.packCount || 0) > 0) {
+        return { quantity: 1, rate: (i.packCount || 0) * (i.packRate || 0) };
+      }
+      return { quantity: i.quantity || 0, rate: i.rate || 0 };
+    }),
     watchedDiscountType as DiscountType,
     watchedDiscount || 0,
     watchedReturn || 0
@@ -103,6 +112,20 @@ export default function NewInvoice() {
     if (prod) {
       form.setValue(`items.${index}.rate`, prod.sellingPrice);
       form.setValue(`items.${index}.costPrice`, prod.costPrice);
+      form.setValue(`items.${index}.unitType`, "single");
+      form.setValue(`items.${index}.packSize`, prod.packSize || 0);
+      form.setValue(`items.${index}.packRate`, prod.packSellingPrice || 0);
+      form.setValue(`items.${index}.packCount`, 0);
+    }
+  }
+
+  function handleUnitTypeChange(index: number, type: "single" | "pack") {
+    form.setValue(`items.${index}.unitType`, type);
+    if (type === "pack") {
+      const prod = products?.find((p) => p.id === form.getValues(`items.${index}.productId`));
+      form.setValue(`items.${index}.packSize`, prod?.packSize || 0);
+      form.setValue(`items.${index}.packRate`, prod?.packSellingPrice || 0);
+      form.setValue(`items.${index}.packCount`, 1);
     }
   }
 
@@ -129,6 +152,23 @@ export default function NewInvoice() {
       date: data.date,
       items: data.items.map((item) => {
         const prod = productMap[item.productId];
+        if (item.unitType === "pack" && (item.packCount || 0) > 0) {
+          const pSize = item.packSize || prod?.packSize || 1;
+          const pRate = item.packRate || 0;
+          const pCount = item.packCount || 0;
+          return {
+            productId: item.productId,
+            productName: prod?.name || "Unknown",
+            bottleSize: prod?.bottleSize,
+            quantity: pCount * pSize,
+            rate: pSize > 0 ? pRate / pSize : pRate,
+            costPrice: item.costPrice,
+            amount: pCount * pRate,
+            packCount: pCount,
+            packSize: pSize,
+            packRate: pRate,
+          };
+        }
         return {
           productId: item.productId,
           productName: prod?.name || "Unknown",
@@ -207,7 +247,7 @@ export default function NewInvoice() {
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => append({ productId: 0, quantity: 1, rate: 0, costPrice: 0 })}
+                onClick={() => append({ productId: 0, quantity: 1, rate: 0, costPrice: 0, unitType: "single", packCount: 0, packRate: 0, packSize: 0 })}
                 data-testid="button-add-item"
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
@@ -217,51 +257,113 @@ export default function NewInvoice() {
           </CardHeader>
           <CardContent className="space-y-3">
             {fields.map((field, index) => {
-              const qty = watchedItems[index]?.quantity || 0;
-              const rate = watchedItems[index]?.rate || 0;
+              const item = watchedItems[index];
+              const qty = item?.quantity || 0;
+              const rate = item?.rate || 0;
+              const unitType = item?.unitType || "single";
+              const packCount = item?.packCount || 0;
+              const packRate = item?.packRate || 0;
+              const packSize = item?.packSize || 0;
+              const isPack = unitType === "pack";
+              const rowAmount = isPack ? packCount * packRate : qty * rate;
+              const selectedProd = products?.find((p) => p.id === (item?.productId || 0));
+              const hasPack = (selectedProd?.packSize || 0) > 0;
               return (
-                <div key={field.id} className="grid grid-cols-12 gap-2 items-end" data-testid={`item-row-${index}`}>
-                  <div className="col-span-5">
-                    {index === 0 && <Label className="text-xs mb-1 block">Product</Label>}
-                    <SearchableSelect
-                      options={productOptions}
-                      value={String(form.watch(`items.${index}.productId`) || "")}
-                      onChange={(v) => handleProductChange(index, Number(v))}
-                      placeholder="Select product..."
-                      searchPlaceholder="Search product..."
-                      data-testid={`select-product-${index}`}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    {index === 0 && <Label className="text-xs mb-1 block">Qty</Label>}
-                    <Input
-                      type="number" min={1} className="h-9 text-sm"
-                      data-testid={`input-qty-${index}`}
-                      {...form.register(`items.${index}.quantity`)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    {index === 0 && <Label className="text-xs mb-1 block">Rate</Label>}
-                    <Input
-                      type="number" min={0} step="0.01" className="h-9 text-sm"
-                      data-testid={`input-rate-${index}`}
-                      {...form.register(`items.${index}.rate`)}
-                    />
-                  </div>
-                  <div className="col-span-2 text-xs text-right text-muted-foreground pt-1">
-                    {index === 0 && <div className="text-xs mb-1 opacity-0">-</div>}
-                    <div className="h-9 flex items-center justify-end font-medium text-sm">
-                      {formatPKR(qty * rate)}
+                <div key={field.id} className="space-y-2" data-testid={`item-row-${index}`}>
+                  <div className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-5">
+                      {index === 0 && <Label className="text-xs mb-1 block">Product</Label>}
+                      <SearchableSelect
+                        options={productOptions}
+                        value={String(form.watch(`items.${index}.productId`) || "")}
+                        onChange={(v) => handleProductChange(index, Number(v))}
+                        placeholder="Select product..."
+                        searchPlaceholder="Search product..."
+                        data-testid={`select-product-${index}`}
+                      />
+                    </div>
+                    {!isPack && (
+                      <>
+                        <div className="col-span-2">
+                          {index === 0 && <Label className="text-xs mb-1 block">Qty (bottles)</Label>}
+                          <Input
+                            type="number" min={1} className="h-9 text-sm"
+                            data-testid={`input-qty-${index}`}
+                            {...form.register(`items.${index}.quantity`)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          {index === 0 && <Label className="text-xs mb-1 block">Rate/bottle</Label>}
+                          <Input
+                            type="number" min={0} step="0.01" className="h-9 text-sm"
+                            data-testid={`input-rate-${index}`}
+                            {...form.register(`items.${index}.rate`)}
+                          />
+                        </div>
+                      </>
+                    )}
+                    {isPack && (
+                      <>
+                        <div className="col-span-2">
+                          {index === 0 && <Label className="text-xs mb-1 block">Pet count</Label>}
+                          <Input
+                            type="number" min={1} className="h-9 text-sm border-purple-300"
+                            placeholder="Pets"
+                            data-testid={`input-pack-count-${index}`}
+                            {...form.register(`items.${index}.packCount`)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          {index === 0 && <Label className="text-xs mb-1 block">Rate/pet</Label>}
+                          <Input
+                            type="number" min={0} step="0.01" className="h-9 text-sm border-purple-300"
+                            placeholder="Pet price"
+                            data-testid={`input-pack-rate-${index}`}
+                            {...form.register(`items.${index}.packRate`)}
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div className="col-span-2 text-xs text-right text-muted-foreground pt-1">
+                      {index === 0 && <div className="text-xs mb-1 opacity-0">-</div>}
+                      <div className="h-9 flex items-center justify-end font-medium text-sm">
+                        {formatPKR(rowAmount)}
+                      </div>
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      {index === 0 && <div className="text-xs mb-1 opacity-0">-</div>}
+                      {fields.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => remove(index)} data-testid={`button-remove-${index}`}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="col-span-1 flex justify-end">
-                    {index === 0 && <div className="text-xs mb-1 opacity-0">-</div>}
-                    {fields.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => remove(index)} data-testid={`button-remove-${index}`}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
+                  {hasPack && (
+                    <div className="flex items-center gap-2 ml-1">
+                      <span className="text-xs text-muted-foreground">Sell as:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleUnitTypeChange(index, "single")}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${!isPack ? "bg-primary text-primary-foreground border-primary" : "border-muted-foreground/30 text-muted-foreground hover:border-primary"}`}
+                      >
+                        Bottle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUnitTypeChange(index, "pack")}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${isPack ? "bg-purple-600 text-white border-purple-600" : "border-muted-foreground/30 text-muted-foreground hover:border-purple-400"}`}
+                        data-testid={`button-unit-type-pack-${index}`}
+                      >
+                        Pet ({packSize} pcs)
+                      </button>
+                      {isPack && packCount > 0 && (
+                        <span className="text-xs text-purple-600 font-medium ml-2">
+                          = {packCount * packSize} bottles in stock
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -338,8 +440,18 @@ export default function NewInvoice() {
               <span className="text-primary text-lg">{formatPKR(netAmount)}</span>
             </div>
             <div className="text-xs text-muted-foreground text-right">
-              Est. Cost: {formatPKR(watchedItems.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0))} |
-              Gross Profit: {formatPKR(netAmount - watchedItems.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0))}
+              Est. Cost: {formatPKR(watchedItems.reduce((s, i) => {
+                const bottles = i.unitType === "pack" && (i.packCount || 0) > 0
+                  ? (i.packCount || 0) * (i.packSize || 0)
+                  : (i.quantity || 0);
+                return s + bottles * (i.costPrice || 0);
+              }, 0))} |
+              Gross Profit: {formatPKR(netAmount - watchedItems.reduce((s, i) => {
+                const bottles = i.unitType === "pack" && (i.packCount || 0) > 0
+                  ? (i.packCount || 0) * (i.packSize || 0)
+                  : (i.quantity || 0);
+                return s + bottles * (i.costPrice || 0);
+              }, 0))}
             </div>
           </CardContent>
         </Card>
