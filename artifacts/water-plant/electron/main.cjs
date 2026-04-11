@@ -1,6 +1,5 @@
 const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
 const path = require("path");
-const { pathToFileURL } = require("url");
 const os = require("os");
 const fs = require("fs");
 const crypto = require("crypto");

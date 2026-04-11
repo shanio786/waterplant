@@ -2,6 +2,8 @@ appId: com.devoriatech.waterplantmanager
 productName: Water Plant Manager
 copyright: "© 2026 Devoria Tech | +92 311 7597815"
 
+asar: false
+
 directories:
   buildResources: public
   output: dist-electron
