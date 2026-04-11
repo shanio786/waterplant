@@ -143,6 +143,21 @@ function createWindow() {
   } else {
     const indexPath = path.join(__dirname, "../dist/index.html");
     mainWindow.loadFile(indexPath);
+
+    mainWindow.webContents.on("did-finish-load", () => {
+      try {
+        const assetsDir = path.join(__dirname, "../dist/assets");
+        if (fs.existsSync(assetsDir)) {
+          const cssFiles = fs.readdirSync(assetsDir).filter((f) => f.endsWith(".css"));
+          for (const cssFile of cssFiles) {
+            const cssContent = fs.readFileSync(path.join(assetsDir, cssFile), "utf-8");
+            mainWindow.webContents.insertCSS(cssContent);
+          }
+        }
+      } catch (e) {
+        // CSS injection fallback failed silently
+      }
+    });
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
