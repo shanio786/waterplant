@@ -1,0 +1,46 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> git pull origin main
+remote: Enumerating objects: 58, done.
+remote: Counting objects: 100% (58/58), done.
+remote: Compressing objects: 100% (9/9), done.
+remote: Total 36 (delta 26), reused 35 (delta 25), pack-reused 0 (from 0)
+Unpacking objects: 100% (36/36), 10.57 KiB | 94.00 KiB/s, done.
+From https://github.com/shanio786/waterplant
+ * branch            main       -> FETCH_HEAD
+   5e0c4f1..1e14538  main       -> origin/main
+Updating 5e0c4f1..1e14538
+error: The following untracked working tree files would be overwritten by merge:
+        gen-activation-code.js
+Please move or remove them before you merge.
+Aborting
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> pnpm install
+Scope: all 9 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+Done in 2.7s using pnpm v10.33.0
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> del gen-activation-code.js
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> git pull origin main
+From https://github.com/shanio786/waterplant
+ * branch            main       -> FETCH_HEAD
+Updating 5e0c4f1..1e14538
+Fast-forward
+ .replit                                            |  21 +++
+ artifacts/water-plant/src/index.css                |  55 ++++++
+ artifacts/water-plant/src/lib/db.ts                |  17 ++
+ artifacts/water-plant/src/lib/types.ts             |   7 +
+ .../src/pages/inventory/ConsumableInventory.tsx    | 200 ++++++++++++--------
+ .../src/pages/inventory/FillingProcess.tsx         |  40 ++--
+ .../src/pages/inventory/ReceiveEmpty.tsx           | 164 ++++++++---------
+ .../water-plant/src/pages/inventory/StockView.tsx  |  28 ++-
+ .../water-plant/src/pages/invoices/InvoiceView.tsx |  19 +-
+ .../water-plant/src/pages/invoices/NewInvoice.tsx  | 204 ++++++++++++++++-----
+ .../water-plant/src/pages/products/Products.tsx    |  28 +++
+ .../water-plant/src/pages/reports/Reports.tsx      |  14 +-
+ gen-activation-code.js                             |  36 ++++
+ 13 files changed, 599 insertions(+), 234 deletions(-)
+ create mode 100644 gen-activation-code.js
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant>
