@@ -1,0 +1,61 @@
+failed to load config from C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\vite.config.ts
+error during build:
+Error: Cannot find native binding. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+    at Object.<anonymous> (C:\Users\Mehryam\Desktop\waterplant\waterplant\node_modules\.pnpm\@tailwindcss+oxide@4.2.1\node_modules\@tailwindcss\oxide\index.js:559:11)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at cjsLoader (node:internal/modules/esm/translators:298:15)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async loadConfigFromBundledFile (file:///C:/Users/Mehryam/Desktop/waterplant/waterplant/node_modules/.pnpm/vite@7.3.1_@types+node@25.3_847d3f1dfd8a5a4dca3b40dafc2c9d32/node_modules/vite/dist/node/chunks/config.js:35909:12)
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> cd C:\Users\Mehryam\Desktop\waterplant\waterplant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> Remove-Item -Recurse -Force node_modules
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> pnpm install
+Scope: all 9 workspace projects
+Lockfile is up to date, resolution step is skipped
+Packages: +735
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 735, reused 735, downloaded 0, added 735, done
+
+devDependencies:
++ prettier 3.8.1
++ typescript 5.9.3
+
+╭ Warning ───────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                            │
+│   Ignored build scripts: electron@41.1.1.                                                  │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.   │
+│                                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+Done in 9.3s using pnpm v10.33.0
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant> cd artifacts\water-plant
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant> pnpm run electron:build:win
+
+> @workspace/water-plant@0.0.0 electron:build:win C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> cross-env ELECTRON_BUILD=true pnpm run build && electron-builder --win --config electron-builder.yml
+
+
+> @workspace/water-plant@0.0.0 build C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant
+> vite build --config vite.config.ts
+
+failed to load config from C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant\vite.config.ts
+error during build:
+Error: Cannot find native binding. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+    at Object.<anonymous> (C:\Users\Mehryam\Desktop\waterplant\waterplant\node_modules\.pnpm\@tailwindcss+oxide@4.2.1\node_modules\@tailwindcss\oxide\index.js:559:11)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at cjsLoader (node:internal/modules/esm/translators:298:15)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async loadConfigFromBundledFile (file:///C:/Users/Mehryam/Desktop/waterplant/waterplant/node_modules/.pnpm/vite@7.3.1_@types+node@25.3_847d3f1dfd8a5a4dca3b40dafc2c9d32/node_modules/vite/dist/node/chunks/config.js:35909:12)
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.
+PS C:\Users\Mehryam\Desktop\waterplant\waterplant\artifacts\water-plant>
