@@ -26,12 +26,22 @@ if (!isElectronBuild && !basePath) {
   );
 }
 
+const electronHtmlFix = {
+  name: "electron-html-fix",
+  transformIndexHtml(html: string) {
+    return html
+      .replace(/<link rel="preconnect"[^>]*>\s*/g, "")
+      .replace(/<link[^>]*fonts\.googleapis\.com[^>]*>\s*/g, "")
+      .replace(/ crossorigin(?:="[^"]*")?/g, "");
+  },
+};
+
 export default defineConfig({
   base: isElectronBuild ? "./" : (basePath ?? "/"),
   plugins: [
     react(),
     tailwindcss(),
-    runtimeErrorOverlay(),
+    ...(isElectronBuild ? [electronHtmlFix] : [runtimeErrorOverlay()]),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
