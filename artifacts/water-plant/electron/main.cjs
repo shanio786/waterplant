@@ -146,16 +146,13 @@ function createWindow() {
 
     mainWindow.webContents.on("did-finish-load", () => {
       try {
-        const assetsDir = path.join(__dirname, "../dist/assets");
-        if (fs.existsSync(assetsDir)) {
-          const cssFiles = fs.readdirSync(assetsDir).filter((f) => f.endsWith(".css"));
-          for (const cssFile of cssFiles) {
-            const cssContent = fs.readFileSync(path.join(assetsDir, cssFile), "utf-8");
-            mainWindow.webContents.insertCSS(cssContent);
-          }
+        const cssPath = path.join(__dirname, "tailwind.css");
+        if (fs.existsSync(cssPath)) {
+          const cssContent = fs.readFileSync(cssPath, "utf-8");
+          mainWindow.webContents.insertCSS(cssContent);
         }
       } catch (e) {
-        // CSS injection fallback failed silently
+        // CSS injection failed
       }
     });
   }
