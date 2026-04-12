@@ -1,0 +1,41 @@
+C:\Users\zeesh\Desktop\water plant\waterplant>cd artifacts\water-plant
+
+C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant>pnpm run electron:build:win
+
+> @workspace/water-plant@0.0.0 electron:build:win C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant
+> cross-env ELECTRON_BUILD=true pnpm run build && electron-builder --win --config electron-builder.yml
+
+
+> @workspace/water-plant@0.0.0 build C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant
+> vite build --config vite.config.ts
+
+(node:8728) ExperimentalWarning: WASI is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v7.3.1 building client environment for production...
+transforming (5) ..\..\node_modules\.pnpm\react@19.1.0\node_modules\react\cjs\react-jsx-runtime.production.js(node:8728) ExperimentalWarning: WASI is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 2180 modules transformed.
+dist/index.html                   0.76 kB │ gzip:   0.42 kB
+dist/assets/index-DBCOmBiE.css   10.94 kB │ gzip:   2.90 kB
+dist/assets/index-CvZEzNMd.js   776.20 kB │ gzip: 223.65 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 24.76s
+  • electron-builder  version=26.8.1 os=10.0.19045
+  • loaded configuration  file=C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant\electron-builder.yml
+  • description is missed in the package.json  appPackageFile=C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant\package.json
+  • author is missed in the package.json  appPackageFile=C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant\package.json
+  • writing effective config  file=dist-electron\builder-effective-config.yaml
+  • packageManager not detected by file, falling back to environment detection  resolvedPackageManager=pnpm detected=C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant
+  • executing @electron/rebuild  electronVersion=41.1.1 arch=x64 buildFromSource=false workspaceRoot=C:\Users\zeesh\Desktop\water plant\waterplant\artifacts\water-plant projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=41.1.1 appOutDir=dist-electron\win-unpacked
+  • downloading     url=https://github.com/electron/electron/releases/download/v41.1.1/electron-v41.1.1-win32-x64.zip size=142 MB parts=8
+
