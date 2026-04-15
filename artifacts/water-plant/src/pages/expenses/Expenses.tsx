@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
 import { EXPENSE_CATEGORIES } from "@/lib/types";
 import type { ExpenseCategory } from "@/lib/types";
-import { DollarSign, Plus, Trash2 } from "lucide-react";
+import { DollarSign, Plus, Trash2, Pencil } from "lucide-react";
 import { format } from "date-fns";
 
 const schema = z.object({
@@ -41,6 +41,7 @@ const categoryColors: Record<ExpenseCategory, string> = {
 
 export default function Expenses() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [filterMode, setFilterMode] = useState<"daily" | "monthly">("daily");
   const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10));
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -60,16 +61,34 @@ export default function Expenses() {
     },
   });
 
+  function openAdd() {
+    setEditingId(null);
+    form.reset({ category: "Other", amount: 0, description: "", date: new Date().toISOString().slice(0, 10) });
+    setDialogOpen(true);
+  }
+
+  function openEdit(e: { id?: number; category: ExpenseCategory; amount: number; description: string; date: string }) {
+    setEditingId(e.id ?? null);
+    form.reset({ category: e.category, amount: e.amount, description: e.description, date: e.date });
+    setDialogOpen(true);
+  }
+
   async function onSubmit(data: FormData) {
-    await db.expenses.add({ ...data, category: data.category as ExpenseCategory, createdAt: new Date().toISOString() });
-    toast({ title: "Expense recorded", description: `${data.category} — ${formatPKR(data.amount)}` });
+    if (editingId !== null) {
+      await db.expenses.update(editingId, { ...data, category: data.category as ExpenseCategory });
+      toast({ title: "Expense update ho gai", description: `${data.category} — ${formatPKR(data.amount)}` });
+    } else {
+      await db.expenses.add({ ...data, category: data.category as ExpenseCategory, createdAt: new Date().toISOString() });
+      toast({ title: "Expense recorded", description: `${data.category} — ${formatPKR(data.amount)}` });
+    }
     form.reset({ category: "Other", amount: 0, description: "", date: new Date().toISOString().slice(0, 10) });
     setDialogOpen(false);
+    setEditingId(null);
   }
 
   async function deleteExpense(id: number) {
     await db.expenses.delete(id);
-    toast({ title: "Expense deleted" });
+    toast({ title: "Expense delete ho gai" });
   }
 
   const filtered = (expenses || []).filter((e) => {
@@ -89,14 +108,14 @@ export default function Expenses() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-add-expense">
+            <Button onClick={openAdd} data-testid="button-add-expense">
               <Plus className="h-4 w-4 mr-1.5" />
               Add Expense
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Expense</DialogTitle>
+              <DialogTitle>{editingId !== null ? "Expense Edit Karo" : "Add Expense"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-1.5">
@@ -130,7 +149,7 @@ export default function Expenses() {
                 <Input type="date" data-testid="input-date" {...form.register("date")} />
               </div>
               <Button type="submit" className="w-full" data-testid="button-save-expense">
-                Save Expense
+                {editingId !== null ? "Update Karo" : "Save Expense"}
               </Button>
             </form>
           </DialogContent>
@@ -187,8 +206,11 @@ export default function Expenses() {
                     <p className="text-xs text-muted-foreground">{format(new Date(e.date), "dd MMM yyyy")}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className="font-semibold text-destructive text-sm">{formatPKR(e.amount)}</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(e)} data-testid={`button-edit-${e.id}`}>
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteExpense(e.id!)} data-testid={`button-delete-${e.id}`}>
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>

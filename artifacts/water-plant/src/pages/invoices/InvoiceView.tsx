@@ -6,7 +6,9 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
 import type { Invoice, Customer, BusinessSettings } from "@/lib/types";
-import { ArrowLeft, Printer, Droplets } from "lucide-react";
+import { ArrowLeft, Printer, Droplets, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 function formatPKR(n: number) {
@@ -253,6 +255,15 @@ export default function InvoiceView() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const [printMode, setPrintMode] = useState<"a4" | "thermal">("a4");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  async function handleDelete() {
+    if (!invoice?.id) return;
+    await db.invoices.delete(invoice.id);
+    toast({ title: "Invoice delete ho gai", description: `${invoice.invoiceNumber} hata di gai.` });
+    setLocation("/invoices");
+  }
 
   useEffect(() => {
     db.businessSettings.toCollection().first().then((s) => setSettings(s ?? null));
@@ -301,8 +312,36 @@ export default function InvoiceView() {
             <Printer className="h-4 w-4 mr-1.5" />
             Print
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={() => setDeleteDialogOpen(true)}
+            data-testid="button-delete-invoice"
+          >
+            <Trash2 className="h-4 w-4 mr-1.5" />
+            Delete
+          </Button>
         </div>
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invoice Delete Karo?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Invoice <strong>{invoice.invoiceNumber}</strong> permanently delete ho jayegi. Yeh action undo nahi ho sakta.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} data-testid="button-confirm-delete">
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              Delete Karo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="overflow-hidden">
         <CardContent className="p-0">

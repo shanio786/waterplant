@@ -34,6 +34,13 @@ export default function StockView() {
 
   const emptyStockEntries = useLiveQuery(() => db.emptyStockEntries.toArray());
 
+  // Auto-reload top stock cards when data changes
+  useEffect(() => { load(); }, [
+    emptyStockEntries?.length,
+    allFillingRecords?.length,
+    allInvoices?.length,
+  ]);
+
   function getFillingProductStock(productId: number) {
     const prod = (fillingProducts || []).find((p) => p.id === productId);
     const size = prod?.bottleSize;

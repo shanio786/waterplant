@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
 import { BOTTLE_LABELS } from "@/lib/types";
 import type { BottleSize } from "@/lib/types";
-import { Package, Plus } from "lucide-react";
+import { Package, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 const schema = z.object({
@@ -47,6 +47,11 @@ export default function ReceiveEmpty() {
 
   const selectedProductId = Number(form.watch("productId")) || 0;
   const selectedProduct = (products || []).find((p) => p.id === selectedProductId);
+
+  async function deleteEntry(id: number) {
+    await db.emptyStockEntries.delete(id);
+    toast({ title: "Entry delete ho gai" });
+  }
 
   async function onSubmit(data: FormData) {
     if (!selectedProduct) {
@@ -201,6 +206,14 @@ export default function ReceiveEmpty() {
                       <span className="text-muted-foreground text-xs">
                         {format(new Date(e.date), "dd MMM yyyy")}
                       </span>
+                      <button
+                        onClick={() => deleteEntry(e.id!)}
+                        className="text-destructive hover:text-destructive/70 p-1 rounded"
+                        title="Delete"
+                        data-testid={`button-delete-entry-${e.id}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
