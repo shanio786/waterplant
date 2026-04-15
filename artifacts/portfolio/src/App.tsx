@@ -1,3 +1,4 @@
+import React from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -148,10 +149,19 @@ function Portfolio() {
   );
 }
 
+function FullScreen({ children }: { children: React.ReactNode }) {
+  return <div className="w-screen h-screen overflow-hidden">{children}</div>;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Portfolio} />
+      <Route path="/s/water-plant" component={() => <FullScreen><WaterPlantManager /></FullScreen>} />
+      <Route path="/s/pharmacy" component={() => <FullScreen><PharmacyPOS /></FullScreen>} />
+      <Route path="/s/restaurant" component={() => <FullScreen><RestaurantBilling /></FullScreen>} />
+      <Route path="/s/school" component={() => <FullScreen><SchoolManagement /></FullScreen>} />
+      <Route path="/s/retail" component={() => <FullScreen><RetailInventory /></FullScreen>} />
       <Route component={NotFound} />
     </Switch>
   );
