@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -187,33 +188,20 @@ export default function ConsumableInventory() {
 
               <div className="space-y-1.5">
                 <Label>Product <span className="text-destructive">*</span></Label>
-                <Select
+                <SearchableSelect
+                  options={filteredProducts.map((p) => ({
+                    value: String(p.id),
+                    label: p.name,
+                    sub: p.bottleSize
+                      ? `${BOTTLE_LABELS[p.bottleSize]} — ${activeItem === "label" ? p.labelsPerUnit : p.capsPerUnit} per bottle`
+                      : undefined,
+                  }))}
                   value={selectedProductId > 0 ? String(selectedProductId) : ""}
-                  onValueChange={(v) => form.setValue("productId", Number(v))}
-                >
-                  <SelectTrigger data-testid="select-product">
-                    <SelectValue placeholder="Product choose karo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredProducts.length === 0 && (
-                      <SelectItem value="0" disabled>
-                        Koi product nahi mila
-                      </SelectItem>
-                    )}
-                    {filteredProducts.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        <div className="flex flex-col">
-                          <span>{p.name}</span>
-                          {p.bottleSize && (
-                            <span className="text-xs text-muted-foreground">
-                              {BOTTLE_LABELS[p.bottleSize]} — {activeItem === "label" ? p.labelsPerUnit : p.capsPerUnit} per bottle
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => form.setValue("productId", Number(v))}
+                  placeholder="Product choose karo..."
+                  searchPlaceholder="Search product..."
+                  data-testid="select-product"
+                />
                 {form.formState.errors.productId && (
                   <p className="text-xs text-destructive">{form.formState.errors.productId.message}</p>
                 )}

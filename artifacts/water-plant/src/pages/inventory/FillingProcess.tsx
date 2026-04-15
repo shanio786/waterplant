@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -159,33 +159,18 @@ export default function FillingProcess() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Product <span className="text-destructive">*</span></Label>
-                <Select
+                <SearchableSelect
+                  options={(products || []).map((p) => ({
+                    value: String(p.id),
+                    label: p.name,
+                    sub: p.bottleSize ? BOTTLE_LABELS[p.bottleSize] : undefined,
+                  }))}
                   value={selectedProductId > 0 ? String(selectedProductId) : ""}
-                  onValueChange={(v) => form.setValue("productId", Number(v))}
-                >
-                  <SelectTrigger data-testid="select-product">
-                    <SelectValue placeholder="Product choose karo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(products || []).length === 0 && (
-                      <SelectItem value="0" disabled>
-                        Koi filling product nahi — Products mein add karo
-                      </SelectItem>
-                    )}
-                    {(products || []).map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        <div className="flex flex-col">
-                          <span>{p.name}</span>
-                          {p.bottleSize && (
-                            <span className="text-xs text-muted-foreground">
-                              {BOTTLE_LABELS[p.bottleSize]}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => form.setValue("productId", Number(v))}
+                  placeholder="Product choose karo..."
+                  searchPlaceholder="Search product..."
+                  data-testid="select-product"
+                />
                 {form.formState.errors.productId && (
                   <p className="text-xs text-destructive">{form.formState.errors.productId.message}</p>
                 )}

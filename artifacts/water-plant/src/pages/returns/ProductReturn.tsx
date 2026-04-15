@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -123,19 +124,14 @@ export default function ProductReturn() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Customer</Label>
-                <Select
+                <SearchableSelect
+                  options={(customers || []).map((c) => ({ value: String(c.id), label: c.name, sub: c.phone }))}
                   value={String(form.watch("customerId") || "")}
-                  onValueChange={(v) => form.setValue("customerId", Number(v))}
-                >
-                  <SelectTrigger data-testid="select-customer">
-                    <SelectValue placeholder="Select customer..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers?.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => form.setValue("customerId", Number(v))}
+                  placeholder="Select customer..."
+                  searchPlaceholder="Search by name or phone..."
+                  data-testid="select-customer"
+                />
                 {form.formState.errors.customerId && <p className="text-xs text-destructive">{form.formState.errors.customerId.message}</p>}
               </div>
               <div className="space-y-1.5">
@@ -177,19 +173,17 @@ export default function ProductReturn() {
               {fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-7 gap-2 items-center" data-testid={`return-item-${index}`}>
                   <div className="col-span-3">
-                    <Select
+                    <SearchableSelect
+                      options={(products || []).map((p) => ({
+                        value: String(p.id),
+                        label: p.name,
+                        sub: p.unit ? `${p.unit} — Rs. ${p.sellingPrice}` : undefined,
+                      }))}
                       value={String(form.watch(`items.${index}.productId`) || "")}
-                      onValueChange={(v) => handleProductChange(index, Number(v))}
-                    >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Product..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(products || []).map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(v) => handleProductChange(index, Number(v))}
+                      placeholder="Product..."
+                      searchPlaceholder="Search product..."
+                    />
                   </div>
                   <div className="col-span-2">
                     <Input type="number" min={1} className="h-9 text-sm" placeholder="Qty" {...form.register(`items.${index}.quantity`)} />
