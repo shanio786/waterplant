@@ -1,5 +1,16 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "PJFoxPD1DhbLRyvpCubaX"
+uri = "file://artifacts/devoria-video/public/images/tech-grid.png"
+type = "image"
+title = "Cinematic tech grid background"
+
+[[generated]]
+id = "vPosNQY9JcQ_F87p7EkVJ"
+uri = "file://artifacts/devoria-video/public/images/particles.png"
+type = "image"
+title = "Cinematic particle texture"
 
 [[outputs]]
 id = "5c8nYOGH1YaOD4uZB51n_"
