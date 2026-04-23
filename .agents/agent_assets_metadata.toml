@@ -1,49 +1,8 @@
 uploads = []
-
-[[generated]]
-id = "PJFoxPD1DhbLRyvpCubaX"
-uri = "file://artifacts/devoria-video/public/images/tech-grid.png"
-type = "image"
-title = "Cinematic tech grid background"
-
-[[generated]]
-id = "vPosNQY9JcQ_F87p7EkVJ"
-uri = "file://artifacts/devoria-video/public/images/particles.png"
-type = "image"
-title = "Cinematic particle texture"
+generated = []
 
 [[outputs]]
 id = "5c8nYOGH1YaOD4uZB51n_"
 uri = "file://artifacts/water-plant/dist-electron/WaterPlantManager-Portable.zip"
 type = "unspecified"
 title = "Water Plant Manager - Portable (Windows)"
-
-[[outputs]]
-id = "xQxxphcMgrhAE7PtAiSLp"
-uri = "file://screenshots/02_water_plant.jpg"
-type = "image"
-title = "1. Water Plant Manager – AquaFlow"
-
-[[outputs]]
-id = "WblWUV8PcFp22jQ9C9pY1"
-uri = "file://screenshots/03_pharmacy.jpg"
-type = "image"
-title = "2. Pharmacy POS – MediCare"
-
-[[outputs]]
-id = "Q4ghHt6x0GwCgo0ek4xT4"
-uri = "file://screenshots/04_restaurant.jpg"
-type = "image"
-title = "3. Restaurant Billing – DineMaster Pro"
-
-[[outputs]]
-id = "1tHp3FS3rCTfznppTS6xD"
-uri = "file://screenshots/05_school.jpg"
-type = "image"
-title = "4. School ERP – EduCore"
-
-[[outputs]]
-id = "pyuuHW1H-rjDQogggQ4V8"
-uri = "file://screenshots/06_retail.jpg"
-type = "image"
-title = "5. Retail POS – StockMaster"
