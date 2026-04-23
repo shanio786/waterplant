@@ -133,7 +133,12 @@ export default function NewInvoice() {
     const productMap = Object.fromEntries((products || []).map((p) => [p.id!, p]));
     const invNum = await generateInvoiceNumber();
     const { subtotal, discountAmount, netAmount } = calculateInvoiceAmounts(
-      data.items.map((i) => ({ quantity: i.quantity, rate: i.rate })),
+      data.items.map((i) => {
+        if (i.unitType === "pack" && (i.packCount || 0) > 0) {
+          return { quantity: 1, rate: (i.packCount || 0) * (i.packRate || 0) };
+        }
+        return { quantity: i.quantity, rate: i.rate };
+      }),
       data.discountType,
       data.discountValue,
       data.returnAdjustment
