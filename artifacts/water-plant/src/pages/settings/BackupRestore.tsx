@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/db";
-import { Download, Upload, AlertTriangle, CheckCircle2, Database, ShieldAlert } from "lucide-react";
+import { Download, Upload, AlertTriangle, CheckCircle2, Database, ShieldAlert, Wrench } from "lucide-react";
 import { format } from "date-fns";
 
 const TABLES = [
@@ -35,6 +35,62 @@ export default function BackupRestore() {
   const [pendingData, setPendingData] = useState<BackupData | null>(null);
   const [exporting, setExporting] = useState(false);
   const [stats, setStats] = useState<Record<string, number>>({});
+  const [repairState, setRepairState] = useState<"idle" | "running" | "done">("idle");
+  const [repairResult, setRepairResult] = useState<{ fixed: number; checked: number } | null>(null);
+
+  async function handleRepairPetInvoices() {
+    setRepairState("running");
+    try {
+      const allInvoices = await db.invoices.toArray();
+      let fixed = 0;
+      for (const inv of allInvoices) {
+        const hasPet = inv.items.some((item) => (item.packCount ?? 0) > 0);
+        if (!hasPet) continue;
+
+        // Recalculate subtotal using correct pet logic
+        const subtotal = inv.items.reduce((sum, item) => {
+          if ((item.packCount ?? 0) > 0) {
+            return sum + (item.packCount! * (item.packRate ?? 0));
+          }
+          return sum + item.amount;
+        }, 0);
+
+        const discountAmount = inv.discountType === "flat"
+          ? (inv.discountValue ?? 0)
+          : (subtotal * (inv.discountValue ?? 0)) / 100;
+
+        const netAmount = Math.max(0, subtotal - discountAmount - (inv.returnAdjustment ?? 0));
+
+        // Only update if values are wrong
+        if (inv.subtotal !== subtotal || inv.netAmount !== netAmount) {
+          const paidAmount = inv.paymentType === "cash"
+            ? netAmount
+            : inv.paymentType === "credit"
+            ? 0
+            : Math.min(inv.paidAmount ?? 0, netAmount);
+
+          await db.invoices.update(inv.id!, {
+            subtotal,
+            discountAmount,
+            netAmount,
+            paidAmount,
+          });
+          fixed++;
+        }
+      }
+      setRepairResult({ fixed, checked: allInvoices.length });
+      setRepairState("done");
+      toast({
+        title: fixed > 0 ? `${fixed} invoice(s) theek ho gayi!` : "Sab invoices theek hain",
+        description: fixed > 0
+          ? `${allInvoices.length} mein se ${fixed} pet invoices fix ki gayi hain.`
+          : "Koi galat invoice nahi mili.",
+      });
+    } catch (e) {
+      setRepairState("idle");
+      toast({ title: "Error", description: "Kuch masla aaya, dobara try karo.", variant: "destructive" });
+    }
+  }
 
   async function handleExport() {
     setExporting(true);
@@ -245,6 +301,58 @@ export default function BackupRestore() {
             <div className="flex items-center gap-2 text-green-700 text-sm p-3 bg-green-50 border border-green-200 rounded-lg">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               Restore complete! Page will refresh automatically...
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Data Repair */}
+      <Card className="border-orange-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-orange-600" />
+            Data Repair
+          </CardTitle>
+          <CardDescription>
+            Agar purani pet (pack) invoices mein subtotal ya total galat dikh raha hai toh yeh button click karo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {repairState === "idle" && (
+            <Button
+              variant="outline"
+              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+              onClick={handleRepairPetInvoices}
+              data-testid="button-repair-pet-invoices"
+            >
+              <Wrench className="h-4 w-4 mr-2" />
+              Fix Pet Invoice Calculations
+            </Button>
+          )}
+          {repairState === "running" && (
+            <div className="flex items-center gap-3 text-sm text-orange-600">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-orange-500 border-t-transparent" />
+              Invoices check ho rahi hain...
+            </div>
+          )}
+          {repairState === "done" && repairResult && (
+            <div className="space-y-2">
+              <div className={`flex items-center gap-2 text-sm p-3 rounded-lg border ${repairResult.fixed > 0 ? "bg-green-50 border-green-200 text-green-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <div>
+                  {repairResult.fixed > 0
+                    ? `${repairResult.fixed} invoice(s) fix ho gayi — ${repairResult.checked} total check ki gayi`
+                    : `Sab ${repairResult.checked} invoices theek hain — koi masla nahi mila`}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={() => { setRepairState("idle"); setRepairResult(null); }}
+              >
+                Dobara Check Karo
+              </Button>
             </div>
           )}
         </CardContent>
