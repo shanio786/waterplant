@@ -20,10 +20,21 @@ function formatPKR(n: number) {
 }
 
 function DailyReport() {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const invoices = useLiveQuery(() => db.invoices.where("date").equals(date).toArray(), [date]);
-  const expenses = useLiveQuery(() => db.expenses.where("date").equals(date).toArray(), [date]);
-  const payments = useLiveQuery(() => db.payments.where("date").equals(date).toArray(), [date]);
+  const [fromDate, setFromDate] = useState(new Date().toISOString().slice(0, 10));
+  const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const invoices = useLiveQuery(
+    () => db.invoices.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
+  const expenses = useLiveQuery(
+    () => db.expenses.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
+  const payments = useLiveQuery(
+    () => db.payments.where("date").between(fromDate, toDate, true, true).toArray(),
+    [fromDate, toDate]
+  );
   const customers = useLiveQuery(() => db.customers.toArray(), []);
   const allInvoices = useLiveQuery(() => db.invoices.toArray(), []);
   const allPayments = useLiveQuery(() => db.payments.toArray(), []);
@@ -31,12 +42,10 @@ function DailyReport() {
   const [pendingBalances, setPendingBalances] = useState<Record<number, number>>({});
 
   const totalSales = (invoices || []).reduce((s, i) => s + i.netAmount, 0);
-  // Cash = actually paid amounts (cash + partial paid portion)
   const cashSales = (invoices || []).reduce((s, i) => {
     const paid = i.paidAmount ?? (i.paymentType === "cash" ? i.netAmount : 0);
     return s + paid;
   }, 0);
-  // Credit = unpaid portions
   const creditSales = (invoices || []).reduce((s, i) => {
     const paid = i.paidAmount ?? (i.paymentType === "cash" ? i.netAmount : 0);
     return s + (i.netAmount - paid);
@@ -50,7 +59,6 @@ function DailyReport() {
     if (!customers || !allInvoices || !allPayments || !allReturns) return;
     const balMap: Record<number, number> = {};
     customers.forEach((c) => {
-      // Total unpaid = sum of (netAmount - paidAmount) for each invoice
       const totalUnpaid = (allInvoices || [])
         .filter((inv) => inv.customerId === c.id!)
         .reduce((s, inv) => {
@@ -66,17 +74,29 @@ function DailyReport() {
 
   const pendingCustomers = (customers || []).filter((c) => (pendingBalances[c.id!] || 0) > 0);
 
+  const isSingleDay = fromDate === toDate;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div>
-          <Label className="text-xs">Select Date</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" data-testid="input-report-date" />
+      <div className="flex items-center gap-3 flex-wrap no-print">
+        <div className="space-y-1">
+          <Label className="text-xs">From</Label>
+          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" data-testid="input-report-date" />
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.print()} className="mt-5 no-print" data-testid="button-print-report">
+        <div className="space-y-1">
+          <Label className="text-xs">To</Label>
+          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" data-testid="input-report-to-date" />
+        </div>
+        <Button variant="ghost" size="sm" className="mt-5 text-xs text-muted-foreground" onClick={() => { const t = new Date().toISOString().slice(0,10); setFromDate(t); setToDate(t); }}>Aaj</Button>
+        <Button variant="ghost" size="sm" className="mt-5 text-xs text-muted-foreground" onClick={() => { const d = new Date(); d.setDate(1); setFromDate(d.toISOString().slice(0,10)); setToDate(new Date().toISOString().slice(0,10)); }}>Is Mahine</Button>
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="mt-5" data-testid="button-print-report">
           <Printer className="h-4 w-4 mr-1.5" />
           Print
         </Button>
+      </div>
+
+      <div className="print-only text-sm text-muted-foreground mb-2">
+        {isSingleDay ? `Date: ${format(new Date(fromDate), "dd MMMM yyyy")}` : `Period: ${format(new Date(fromDate), "dd MMM yyyy")} — ${format(new Date(toDate), "dd MMM yyyy")}`}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -102,11 +122,12 @@ function DailyReport() {
         <CardHeader><CardTitle className="text-sm">Invoices ({invoices?.length || 0})</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
           {!invoices || invoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No invoices for this date.</p>
+            <p className="text-sm text-muted-foreground">Is period mein koi invoice nahi.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-xs text-muted-foreground">
+                  <th className="text-left py-2">Date</th>
                   <th className="text-left py-2">Invoice #</th>
                   <th className="text-left py-2">Customer</th>
                   <th className="text-left py-2">Type</th>
@@ -116,6 +137,7 @@ function DailyReport() {
               <tbody>
                 {invoices.map((inv) => (
                   <tr key={inv.id} className="border-b">
+                    <td className="py-2 text-muted-foreground text-xs">{format(new Date(inv.date), "dd MMM")}</td>
                     <td className="py-2">{inv.invoiceNumber}</td>
                     <td className="py-2">{customerMap[inv.customerId]?.name || "?"}</td>
                     <td className="py-2">
@@ -127,10 +149,65 @@ function DailyReport() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="font-bold border-t bg-muted/50">
+                  <td colSpan={4} className="py-2 px-1">Total ({invoices.length} invoices)</td>
+                  <td className="py-2 text-right text-primary">{formatPKR(totalSales)}</td>
+                </tr>
+              </tfoot>
             </table>
           )}
         </CardContent>
       </Card>
+
+      {/* Payments */}
+      {payments && payments.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Payments Received ({payments.length})</CardTitle></CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {payments.map((p) => (
+                <div key={p.id} className="py-2 flex justify-between text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs mr-2">{format(new Date(p.date), "dd MMM")}</span>
+                    <span className="font-medium">{customerMap[p.customerId]?.name || "?"}</span>
+                    {p.notes && <span className="text-muted-foreground ml-2 text-xs">— {p.notes}</span>}
+                  </div>
+                  <span className="text-green-600 font-medium">{formatPKR(p.amount)}</span>
+                </div>
+              ))}
+              <div className="py-2 flex justify-between text-sm font-bold">
+                <span>Total</span>
+                <span className="text-green-600">{formatPKR(totalPayments)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expenses */}
+      {expenses && expenses.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Expenses ({expenses.length})</CardTitle></CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {expenses.map((e) => (
+                <div key={e.id} className="py-2 flex justify-between text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs mr-2">{format(new Date(e.date), "dd MMM")}</span>
+                    <span>{e.category} — {e.description}</span>
+                  </div>
+                  <span className="text-destructive font-medium">{formatPKR(e.amount)}</span>
+                </div>
+              ))}
+              <div className="py-2 flex justify-between text-sm font-bold">
+                <span>Total</span>
+                <span className="text-destructive">{formatPKR(totalExpenses)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending customers */}
       {pendingCustomers.length > 0 && (
@@ -145,23 +222,6 @@ function DailyReport() {
                     <span className="text-muted-foreground ml-2 text-xs">{c.phone}</span>
                   </div>
                   <span className="text-destructive font-medium">{formatPKR(pendingBalances[c.id!] || 0)}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Expenses */}
-      {expenses && expenses.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Expenses ({expenses.length})</CardTitle></CardHeader>
-          <CardContent>
-            <div className="divide-y">
-              {expenses.map((e) => (
-                <div key={e.id} className="py-2 flex justify-between text-sm">
-                  <span>{e.category} — {e.description}</span>
-                  <span className="text-destructive font-medium">{formatPKR(e.amount)}</span>
                 </div>
               ))}
             </div>
@@ -369,6 +429,8 @@ function StockReport() {
   const invoices = useLiveQuery(() => db.invoices.toArray());
   const productReturns = useLiveQuery(() => db.productReturns.toArray());
   const products = useLiveQuery(() => db.products.filter((p) => !!p.bottleSize && p.requiresFilling !== false).toArray());
+  const allProducts = useLiveQuery(() => db.products.filter((p) => p.isActive).toArray());
+  const productStockEntries = useLiveQuery(() => db.productStockEntries.toArray());
 
   const stock = useMemo(() => {
     if (!emptyEntries || !fillingRecords || !invoices || !productReturns || !products) return [];
@@ -388,53 +450,202 @@ function StockReport() {
         return itemSize === bottleSize;
       }).reduce((s, item) => s + item.quantity, 0);
       const prod = productBySize.get(bottleSize);
+      const fullRemaining = Math.max(0, filled - fullSold + fullReturned);
       return {
         bottleSize, emptyReceived, filled,
         emptyRemaining: Math.max(0, emptyReceived - filled),
-        fullSold, fullReturned,
-        fullRemaining: Math.max(0, filled - fullSold + fullReturned),
+        fullSold, fullReturned, fullRemaining,
         labelsPerUnit: prod?.labelsPerUnit ?? 1,
         capsPerUnit: prod?.capsPerUnit ?? 0,
+        costPrice: prod?.costPrice ?? 0,
+        sellingPrice: prod?.sellingPrice ?? 0,
+        totalCostValue: fullRemaining * (prod?.costPrice ?? 0),
+        totalSellValue: fullRemaining * (prod?.sellingPrice ?? 0),
       };
     });
   }, [emptyEntries, fillingRecords, invoices, productReturns, products]);
 
+  // Non-filling products stock
+  const nonFillingStock = useMemo(() => {
+    if (!allProducts || !invoices || !productStockEntries) return [];
+    return allProducts
+      .filter((p) => !p.requiresFilling && !p.bottleSize)
+      .map((p) => {
+        const stockIn = (productStockEntries || []).filter((e) => e.productId === p.id).reduce((s, e) => s + e.quantity, 0);
+        const sold = (invoices || []).reduce((sum, inv) => {
+          return sum + (inv.items || []).filter((item) => item.productId === p.id).reduce((s, item) => s + item.quantity, 0);
+        }, 0);
+        const remaining = Math.max(0, stockIn - sold);
+        return {
+          name: p.name,
+          unit: p.unit,
+          remaining,
+          costPrice: p.costPrice ?? 0,
+          sellingPrice: p.sellingPrice ?? 0,
+          totalCostValue: remaining * (p.costPrice ?? 0),
+          totalSellValue: remaining * (p.sellingPrice ?? 0),
+        };
+      })
+      .filter((p) => p.remaining > 0);
+  }, [allProducts, invoices, productStockEntries]);
+
+  const grandTotalCost = stock.reduce((s, r) => s + r.totalCostValue, 0) + nonFillingStock.reduce((s, r) => s + r.totalCostValue, 0);
+  const grandTotalSell = stock.reduce((s, r) => s + r.totalSellValue, 0) + nonFillingStock.reduce((s, r) => s + r.totalSellValue, 0);
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end no-print">
+      <div className="flex justify-between items-center no-print">
+        <p className="text-xs text-muted-foreground">Real-time stock — refresh ki zarurat nahi</p>
         <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-muted">
-              <th className="text-left py-2.5 px-3 text-xs font-semibold">Bottle Type</th>
-              <th className="text-right py-2.5 px-3 text-xs font-semibold">Empty Rcvd</th>
-              <th className="text-right py-2.5 px-3 text-xs font-semibold">Filled</th>
-              <th className="text-right py-2.5 px-3 text-xs font-semibold">Empty Left</th>
-              <th className="text-right py-2.5 px-3 text-xs font-semibold">Sold</th>
-              <th className="text-right py-2.5 px-3 text-xs font-semibold">Full Left</th>
-              <th className="text-right py-2.5 px-3 text-xs font-semibold">Labels Used</th>
-              <th className="text-right py-2.5 px-3 text-xs font-semibold">Caps Used</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stock.map((s) => (
-              <tr key={s.bottleSize} className="border-b" data-testid={`stock-row-${s.bottleSize}`}>
-                <td className="py-2.5 px-3 font-medium">{BOTTLE_LABELS[s.bottleSize]}</td>
-                <td className="py-2.5 px-3 text-right">{s.emptyReceived}</td>
-                <td className="py-2.5 px-3 text-right">{s.filled}</td>
-                <td className={`py-2.5 px-3 text-right font-medium ${s.emptyRemaining < 10 ? "text-orange-600" : ""}`}>{s.emptyRemaining}</td>
-                <td className="py-2.5 px-3 text-right">{s.fullSold}</td>
-                <td className={`py-2.5 px-3 text-right font-medium ${s.fullRemaining < 10 ? "text-orange-600" : "text-green-600"}`}>{s.fullRemaining}</td>
-                <td className="py-2.5 px-3 text-right text-blue-600">{s.filled * s.labelsPerUnit}</td>
-                <td className="py-2.5 px-3 text-right text-purple-600">{s.filled * s.capsPerUnit}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="pt-3 pb-3">
+            <p className="text-xs text-muted-foreground">Total Stock Cost Value</p>
+            <p className="text-xl font-bold text-orange-600">{formatPKR(grandTotalCost)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Agar sab cost pe becha</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-3 pb-3">
+            <p className="text-xs text-muted-foreground">Total Stock Sell Value</p>
+            <p className="text-xl font-bold text-green-600">{formatPKR(grandTotalSell)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Agar sab sell kiya toh</p>
+          </CardContent>
+        </Card>
       </div>
-      <p className="text-xs text-muted-foreground">* Stock report real-time update hoti hai — refresh ki zarurat nahi</p>
+
+      {/* Filling Products Stock */}
+      <div>
+        <p className="text-sm font-semibold mb-2">Water Bottles Stock</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-muted">
+                <th className="text-left py-2.5 px-3 text-xs font-semibold">Bottle</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Filled</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Sold</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Baqi Stock</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Cost/bottle</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Sell/bottle</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Cost Value</th>
+                <th className="text-right py-2.5 px-3 text-xs font-semibold">Sell Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stock.map((s) => (
+                <tr key={s.bottleSize} className="border-b" data-testid={`stock-row-${s.bottleSize}`}>
+                  <td className="py-2.5 px-3 font-medium">{BOTTLE_LABELS[s.bottleSize]}</td>
+                  <td className="py-2.5 px-3 text-right">{s.filled}</td>
+                  <td className="py-2.5 px-3 text-right">{s.fullSold}</td>
+                  <td className={`py-2.5 px-3 text-right font-bold ${s.fullRemaining < 10 ? "text-orange-600" : "text-green-600"}`}>{s.fullRemaining}</td>
+                  <td className="py-2.5 px-3 text-right text-muted-foreground">{s.costPrice > 0 ? formatPKR(s.costPrice) : "—"}</td>
+                  <td className="py-2.5 px-3 text-right text-muted-foreground">{s.sellingPrice > 0 ? formatPKR(s.sellingPrice) : "—"}</td>
+                  <td className="py-2.5 px-3 text-right text-orange-600 font-medium">{s.totalCostValue > 0 ? formatPKR(s.totalCostValue) : "—"}</td>
+                  <td className="py-2.5 px-3 text-right text-green-600 font-medium">{s.totalSellValue > 0 ? formatPKR(s.totalSellValue) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="font-bold border-t bg-muted/50">
+                <td colSpan={6} className="py-2.5 px-3">Subtotal</td>
+                <td className="py-2.5 px-3 text-right text-orange-600">{formatPKR(stock.reduce((s, r) => s + r.totalCostValue, 0))}</td>
+                <td className="py-2.5 px-3 text-right text-green-600">{formatPKR(stock.reduce((s, r) => s + r.totalSellValue, 0))}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Non-Filling Products Stock */}
+      {nonFillingStock.length > 0 && (
+        <div>
+          <p className="text-sm font-semibold mb-2">Other Products Stock</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-muted">
+                  <th className="text-left py-2.5 px-3 text-xs font-semibold">Product</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Baqi Stock</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Cost/unit</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Sell/unit</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Cost Value</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold">Sell Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nonFillingStock.map((p) => (
+                  <tr key={p.name} className="border-b">
+                    <td className="py-2.5 px-3 font-medium">{p.name}</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-green-600">{p.remaining} {p.unit}</td>
+                    <td className="py-2.5 px-3 text-right text-muted-foreground">{p.costPrice > 0 ? formatPKR(p.costPrice) : "—"}</td>
+                    <td className="py-2.5 px-3 text-right text-muted-foreground">{p.sellingPrice > 0 ? formatPKR(p.sellingPrice) : "—"}</td>
+                    <td className="py-2.5 px-3 text-right text-orange-600 font-medium">{p.totalCostValue > 0 ? formatPKR(p.totalCostValue) : "—"}</td>
+                    <td className="py-2.5 px-3 text-right text-green-600 font-medium">{p.totalSellValue > 0 ? formatPKR(p.totalSellValue) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-bold border-t bg-muted/50">
+                  <td colSpan={4} className="py-2.5 px-3">Subtotal</td>
+                  <td className="py-2.5 px-3 text-right text-orange-600">{formatPKR(nonFillingStock.reduce((s, r) => s + r.totalCostValue, 0))}</td>
+                  <td className="py-2.5 px-3 text-right text-green-600">{formatPKR(nonFillingStock.reduce((s, r) => s + r.totalSellValue, 0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Grand Total */}
+      <Card className="border-2 border-primary/20">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-bold text-base">Grand Total Stock Value</p>
+              <p className="text-xs text-muted-foreground">Tamam products ka baqi stock</p>
+            </div>
+            <div className="text-right space-y-1">
+              <div className="text-sm text-orange-600 font-semibold">Cost: {formatPKR(grandTotalCost)}</div>
+              <div className="text-sm text-green-600 font-semibold">Sell: {formatPKR(grandTotalSell)}</div>
+              <div className="text-xs text-primary font-bold">Potential Profit: {formatPKR(grandTotalSell - grandTotalCost)}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Empty bottles info */}
+      <div>
+        <p className="text-sm font-semibold mb-2">Empty Bottles</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-muted">
+                <th className="text-left py-2 px-3 text-xs font-semibold">Bottle Type</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold">Received</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold">Filled</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold">Empty Baqi</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold">Labels Used</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold">Caps Used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stock.map((s) => (
+                <tr key={s.bottleSize + "-empty"} className="border-b">
+                  <td className="py-2 px-3 font-medium">{BOTTLE_LABELS[s.bottleSize]}</td>
+                  <td className="py-2 px-3 text-right">{s.emptyReceived}</td>
+                  <td className="py-2 px-3 text-right">{s.filled}</td>
+                  <td className={`py-2 px-3 text-right font-medium ${s.emptyRemaining < 10 ? "text-orange-600" : ""}`}>{s.emptyRemaining}</td>
+                  <td className="py-2 px-3 text-right text-blue-600">{s.filled * s.labelsPerUnit}</td>
+                  <td className="py-2 px-3 text-right text-purple-600">{s.filled * s.capsPerUnit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -834,7 +1045,7 @@ export default function Reports() {
 
       <Tabs defaultValue="daily">
         <TabsList className="mb-4 flex-wrap h-auto gap-1">
-          <TabsTrigger value="daily" data-testid="tab-daily">Daily</TabsTrigger>
+          <TabsTrigger value="daily" data-testid="tab-daily">Sales Report</TabsTrigger>
           <TabsTrigger value="sales" data-testid="tab-sales">Product Sales</TabsTrigger>
           <TabsTrigger value="pnl" data-testid="tab-pnl">Profit &amp; Loss</TabsTrigger>
           <TabsTrigger value="stock" data-testid="tab-stock">Stock</TabsTrigger>
